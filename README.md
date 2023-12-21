@@ -17,8 +17,7 @@ Note, there are two differences between the data-set we have provided and the da
 4. run the desired notebook for the particular results in question
 
 
-
-The results in the paper are:
+## Paper Results and Their Locations
 
 
 1. Figure 1: Missing Values over Time
