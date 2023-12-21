@@ -1,0 +1,16 @@
+progressbar
+tqdm
+flake8
+ipython
+scikit-learn
+matplotlib
+numpy
+jupyter
+jupyterthemes
+pandas
+cvxopt
+llvmlite
+numba
+seaborn
+statsmodels
+pyarrow
