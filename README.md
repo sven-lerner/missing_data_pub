@@ -42,9 +42,7 @@ Main Text
 20. Figure 15: Univariate Sorts with and without Missing Values `run_section_6_plots.ipynb`
 21. Figure 16: Imputation Bias in Pure-Play Mimicking Portfolios `run_section_6_plots.ipynb`
 22. Figure 17: Characteristic Mimicking Factor Portfolios `run_section_6_plots.ipynb`
-
-Appendix
-24. Table A.1: Imputation Error for Alternative Implementations
+24. Table A.1: Imputation Error for Alternative Implementations `run_appendix_plots.ipynb`
 25. Simulations
     - Figure A.1: Errors with Missing-Completely-at-Random `run_appendix_plots.ipynb`
     - Figure A.2: Imputation Errors with Missing-Conditionally-at-Random `run_appendix_plots.ipynb`
