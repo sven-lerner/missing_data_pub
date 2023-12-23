@@ -52,11 +52,11 @@ Main Text
 29. Figure D.2: Missing Observations by Characteristic Pooled by Stocks `run_appendix_plots.ipynb` code located [here]()
 30. Figure D.3: Heatmap of Pairwise Correlation from 1967–1976 `run_appendix_plots.ipynb` code located [here]()
 31. Figure D.4: Standard Deviation of Characteristic Ranks `run_appendix_plots.ipynb` code located [here]()
-32. Figure D.5: Generalized Correlation of Global and Local Factor Weights `run_appendix_plots.ipynb` code located [here]()
-33. Figure D.6: Composition of Proxy Factors by Characteristic Categories `run_appendix_plots.ipynb` code located [here]()
-34. Figure D.8: Global and Local Imputation for Individual Characteristics `run_appendix_plots.ipynb` code located [here]()
-35. Figure D.9: Top and Bottom Deciles with and without Missing Values `run_appendix_plots.ipynb` code located [here]()
-36. Figure D.10: Sharpe Ratios with Non-parametric IPCA Factors `run_appendix_plots.ipynb` code located [here]()
+32. Figure D.5: Generalized Correlation of Global and Local Factor Weights `run_appendix_plots.ipynb` code located [here](https://github.com/sven-lerner/missing_data_pub/blob/main/src/plots_and_tables/section_4.py#L308)
+33. Figure D.6: Composition of Proxy Factors by Characteristic Categories `run_appendix_plots.ipynb` code located [here](https://github.com/sven-lerner/missing_data_pub/blob/main/src/plots_and_tables/appendix.py#L356)
+34. Figure D.8: Global and Local Imputation for Individual Characteristics `run_appendix_plots.ipynb` code located [here](https://github.com/sven-lerner/missing_data_pub/blob/main/src/plots_and_tables/section_5.py#L586)
+35. Figure D.9: Top and Bottom Deciles with and without Missing Values `run_appendix_plots.ipynb` code located [here](https://github.com/sven-lerner/missing_data_pub/blob/main/src/plots_and_tables/section_6.py#L167)
+36. Figure D.10: Sharpe Ratios with Non-parametric IPCA Factors `run_appendix_plots.ipynb` code located [here](https://github.com/sven-lerner/missing_data_pub/blob/main/src/plots_and_tables/appendix.py#L56)
 
 
 
