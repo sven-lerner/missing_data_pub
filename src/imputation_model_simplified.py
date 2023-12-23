@@ -1,11 +1,12 @@
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning) 
+
 import numpy as np
 import os
 import missing_data_utils 
 import scipy as sp
-from tqdm.notebook import tqdm
 import matplotlib.pyplot as plt
 from joblib import Parallel, delayed
-from tqdm.notebook import tqdm
 from numpy.linalg import LinAlgError
 
 ############### Core Factor Imputation Model ####################
@@ -79,8 +80,6 @@ def impute_panel_xp_lp(char_panel, return_panel, min_chars, K, num_months_train,
     missing_mask_overall = np.isnan(char_panel)
     char_panel[np.sum(~np.isnan(missing_mask_overall), axis=2) < min_chars] = np.nan
     missing_mask_overall = np.isnan(char_panel)
-    print("allowing a mean", allow_mean)
-    print("shinking lmbda", shrink_lmbda)
     imputed_chars = np.copy(char_panel)
     
     lmbda_minchars = min_chars
@@ -128,7 +127,7 @@ def impute_panel_xp_lp(char_panel, return_panel, min_chars, K, num_months_train,
             return gamma_t
         
         if run_in_parallel:
-            gammas = [x for x in Parallel(n_jobs=30, verbose=5)(delayed(get_gamma_t)(
+            gammas = [x for x in Parallel(n_jobs=30, verbose=0)(delayed(get_gamma_t)(
                 ct = char_panel[t], 
                 present = ~np.isnan(char_panel[t]),
                 to_impute = np.argwhere(return_mask[t]).squeeze(),
@@ -148,7 +147,7 @@ def impute_panel_xp_lp(char_panel, return_panel, min_chars, K, num_months_train,
                 resid_regs = resid_regs[t] if resid_reg and resid_regs is not None else None
             ) for t in range(T)]
 
-        for t in tqdm(range(T)):
+        for t in range(T):
             gamma_ts[t, return_mask[t]] = gammas[t][return_mask[t]]
 #             gamma_ts[t, ~return_mask[t]] = np.nan        
 
@@ -164,10 +163,6 @@ def impute_panel_xp_lp(char_panel, return_panel, min_chars, K, num_months_train,
         if resid_reg:
             resid_regs = np.square(np.nanstd(resids, axis=1))
 
-        print(f"at iteration {i} resids rmse are ", np.sqrt(np.nanmean(np.square(resids))))
-        if eval_data is not None:
-            print(f"at iteration {i} eval resids rmse are ", np.sqrt(np.nanmean(np.square(new_imputation - eval_data))))
-        
         imputed_chars[missing_mask_overall] = new_imputation[missing_mask_overall]
         
         if allow_mean:
@@ -205,7 +200,6 @@ def estimate_lambda(char_panel, return_panel, num_months_train, K, min_chars,
        'SUV', 'TURN', 'VAR'])
     monthly_chars = ['BETA_d', 'BETA_m', 'D2P', 'IdioVol', 'ME', 'TURN',
                      'R2_1', 'R12_2', 'R12_7', 'R36_13', 'R60_13', 'HIGH52', 'RVAR', 'SPREAD',  'SUV',  'VAR']
-    print(min_chars, "window size", window_size)
 
 
     min_char_mask = np.expand_dims(np.logical_and(np.sum(~np.isnan(char_panel), axis=2) >= min_chars,
@@ -223,7 +217,6 @@ def estimate_lambda(char_panel, return_panel, num_months_train, K, min_chars,
     if time_varying_lambdas:
         lmbda = []
         cov_mat = []
-        printed = False
 
         for t in range(len(cov_mats)):
             cov_mats_sum = sum(cov_mats[max(0, t-window_size+1):t+1]) * (1 / (window_size))
@@ -231,7 +224,6 @@ def estimate_lambda(char_panel, return_panel, num_months_train, K, min_chars,
             idx = np.abs(eig_vals).argsort()[::-1]
             if eval_weight_lmbda:
                 if shrink_lmbda:
-                    print("shrinking as expected", reg)
                     lmbda.append(eig_vects[:, idx[:K]] * 
                                  np.maximum(np.sqrt(np.sqrt(np.maximum(eig_vals[idx[:K]].reshape(1, -1), 0))) - reg, 0))
                 else:
@@ -250,7 +242,6 @@ def estimate_lambda(char_panel, return_panel, num_months_train, K, min_chars,
         idx = np.abs(eig_vals).argsort()[::-1]
         if eval_weight_lmbda:
             if shrink_lmbda:
-                print("shrinking as expected", reg)
                 lmbda = eig_vects[:, idx[:K]] * np.maximum(np.sqrt(np.sqrt(eig_vals[idx[:K]].reshape(1, -1))) - reg, 0)
             else:
                 lmbda = eig_vects[:, idx[:K]] * np.sqrt(np.maximum(0, eig_vals[idx[:K]].reshape(1, -1)))
@@ -283,7 +274,6 @@ def get_sufficient_statistics_last_val(characteristics_panel, max_delta=None,
     last_val = np.copy(characteristics_panel[0])
     if residuals is not None:
         last_resid = np.copy(residuals[0])
-    print(last_val.shape)
     lag_amount = np.zeros_like(last_val)
     lag_amount[:] = np.nan
     if residuals is None:
@@ -292,7 +282,7 @@ def get_sufficient_statistics_last_val(characteristics_panel, max_delta=None,
         sufficient_statistics = np.zeros((T,N,L, 2), dtype=float)
     sufficient_statistics[:,:,:,:] = np.nan
     deltas = np.copy(sufficient_statistics[:,:,:,0])
-    for t in tqdm(range(1, T)):
+    for t in range(1, T):
         lag_amount += 1
         sufficient_statistics[t, :, :, 0] = np.copy(last_val)
         deltas[t] = np.copy(lag_amount)
@@ -340,7 +330,7 @@ def impute_chars(char_data, imputed_chars, residuals,
             beta_weight_arr = 2 * beta_weight_arr / np.sum(beta_weight_arr, axis=3, keepdims=True)
             beta_weights = {}
             one_arr = np.ones((1, 1))
-            for t, i, j in tqdm(np.argwhere(np.logical_and(~np.isnan(fw_deltas), ~np.isnan(bw_deltas)))):
+            for t, i, j in np.argwhere(np.logical_and(~np.isnan(fw_deltas), ~np.isnan(bw_deltas))):
                 beta_weights[(t,i,j)] = np.concatenate([one_arr, beta_weight_arr[t,i,j].reshape(-1, 1)], axis=0).squeeze()
         else:
             beta_weights = None
@@ -375,10 +365,9 @@ def impute_beta_combined_regression(characteristics_panel, xs_imps, sufficient_s
     imputed_data[:,:,:]=np.nan
     
     if reg is not None and not switch_off_on_suff_stats and use_factors:
-        print("doing somethingright")
         gamma_ts = gamma_ts * np.sqrt(45)
     
-    for l in tqdm(range(L)):
+    for l in range(L):
         fit_suff_stats = []
         fit_tgts = []
         inds = []
@@ -449,8 +438,6 @@ def impute_beta_combined_regression(characteristics_panel, xs_imps, sufficient_s
                     beta_l_t = np.linalg.lstsq(X.T@X + lmbda, 
                                            X.T@y, rcond=None)[0]
                 betas[t,l,:] = beta_l_t
-                if np.any(np.isnan(beta_l_t)):
-                    print("should be no nans, t=", t,)
                 
         for t in range(T):
             beta_l_t = betas[t,l]
@@ -492,7 +479,7 @@ def simple_impute(char_panel):
     imputed_panel = np.copy(char_panel)
     imputed_panel[:,:,:] = np.nan
     imputed_panel[0] = np.copy(char_panel[0])
-    for t in tqdm(range(1, imputed_panel.shape[0])):
+    for t in range(1, imputed_panel.shape[0]):
         present_t_l = ~np.isnan(char_panel[t-1])
         imputed_t_1 = ~np.isnan(imputed_panel[t-1])
         imputed_panel[t, present_t_l] = char_panel[t-1, present_t_l]
@@ -508,7 +495,7 @@ def xs_industry_median_impute(char_panel, industry_codes):
     imputes using the last value of the characteristic time series
     """
     imputed_panel = np.copy(char_panel)
-    for t in tqdm(range(imputed_panel.shape[0])):
+    for t in range(imputed_panel.shape[0]):
         for c in range(imputed_panel.shape[2]):
             for x in np.unique(industry_codes):
                 industry_filter = industry_codes==x
@@ -548,8 +535,8 @@ def get_all_xs_vals(chars, reg, Lmbda, time_varying_lmbda=False, get_factors=Fal
     
     if time_varying_lmbda:
         imputation = list(Parallel(n_jobs=60)(delayed(impute_t)(chars_t, reg, C, l, get_factors=get_factors) 
-                                              for chars_t, l in tqdm(zip(chars, Lmbda))))
+                                              for chars_t, l in zip(chars, Lmbda)))
     else:
         imputation = list(Parallel(n_jobs=60)(delayed(impute_t)(chars_t, reg, C, Lmbda, get_factors=get_factors)
-                                              for chars_t in tqdm(chars)))
+                                              for chars_t in chars))
     return np.concatenate(imputation, axis=0)

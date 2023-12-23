@@ -1,6 +1,5 @@
 import numpy as np
 from itertools import chain, combinations
-from tqdm.notebook import tqdm
 from collections import defaultdict
 import imputation_utils
 import matplotlib.pyplot as plt
@@ -60,7 +59,7 @@ def generate_combinations_map(chars, returns, char_names, initial_mask,
     total_size = np.nansum(sizes * return_present, axis=1)
     total_shares = np.nansum(shares * return_present, axis=1)
     
-    for subset in tqdm(list(pset)):
+    for subset in list(pset):
         subset = tuple(sorted(subset))
         
         portfolio_mask = np.copy(initial_mask)
@@ -122,7 +121,7 @@ def get_buckets_nyse_cutoffs(permno_mask, present_char_panel,
     T, N, C = full_char_panel.shape
     percentile_indicators = np.zeros((T, N, C, n_bins), dtype=bool)
     to_decide_deciles = permno_mask
-    for t in tqdm(range(T)):
+    for t in range(T):
         for c in range(C):
             c_filter = np.logical_and(to_decide_deciles[t], ~np.isnan(present_char_panel[t, :, c]))
             valid_values_sorted = np.sort(present_char_panel[t, c_filter, c])

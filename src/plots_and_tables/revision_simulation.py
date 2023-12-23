@@ -1,10 +1,10 @@
-from python import data_loading
-from python import imputation_utils, imputation_model, imputation_model_loading_first
+import data_loading
+import imputation_utils, imputation_model_simplified
 import importlib
 import numpy as np
 import pandas as pd
 
-
+columns = ["EM", "EM", "XS", "XS", "XS>K", "XS>K"]
 
 
 def get_factor_model_realization(N, L, K, snr=0.1, factor_scales=None, lmbda_orth=True):
@@ -119,12 +119,9 @@ def run_scheme(numiter, N,K,L,perc,missingtype,num_factors_impute,
     return results
         
     
-from python import imputation_model_simplified
-import importlib
-importlib.reload(imputation_model_simplified)
 def impute_xs_simplified(data, use_cond_exp, niter=1, use_cond_first_time=False,
                         cov_weight_regr=False, eval_data=None, reg=0, nfactors=6, prespec_cov_mats=None,
-                        allow_mean=True, use_alternate_gamma_estm=False,
+                        allow_mean=True, 
                         tv_lambdas=False, eval_weight_lmbda=True, estimate_reg=False,
                         KMax=None):
     
@@ -149,7 +146,6 @@ def impute_xs_simplified(data, use_cond_exp, niter=1, use_cond_first_time=False,
                     n_iter=niter,
                     eval_data=None,
                     allow_mean=False,
-                    use_alternate_gamma_estm=False,
             eval_weight_lmbda=eval_weight_lmbda,
                         resid_reg=estimate_reg,
             run_in_parallel=False)
@@ -170,7 +166,6 @@ def impute_xs_simplified(data, use_cond_exp, niter=1, use_cond_first_time=False,
                 n_iter=niter,
                 eval_data=None,
                 allow_mean=False,
-                use_alternate_gamma_estm=False,
     eval_weight_lmbda=eval_weight_lmbda,
                 resid_reg=estimate_reg,
                 run_in_parallel=False)

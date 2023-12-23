@@ -4,17 +4,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from unicodedata import name
-from python import missing_data_utils, imputation_utils
+import missing_data_utils, imputation_utils, imputation_model_simplified
 from abc import ABC, abstractmethod
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm.notebook import tqdm 
 from joblib import Parallel, delayed
 from collections import defaultdict
 import numpy as np
 from itertools import chain, combinations
-from py_imports import *
-from python.models import FactorModel, PCAFactorModel, IpcaModelV2
+from models import FactorModel, IpcaModelV2
 from matplotlib.lines import Line2D
 
 char_groupings = {
@@ -86,7 +84,6 @@ def plot_factor(lmbda, index, chars, tag):
 
 def get_sparse_lmbda(lmbda, gammas, gamma_tildes, L,K,reg,group_masks):
     start = time()
-    print(L,K,reg)
     lmbda_tilde = cp.Variable((L,K))
     cost = 0
     scale = 0
@@ -97,10 +94,8 @@ def get_sparse_lmbda(lmbda, gammas, gamma_tildes, L,K,reg,group_masks):
     for k in range(K):
         for mask in group_masks:
             cost += reg * cp.norm(lmbda_tilde[mask, k], p=2) * scale / np.sum(mask)
-    print("constructed problem")
     prob = cp.Problem(cp.Minimize(cost))
     prob.solve(solver='GUROBI', verbose=False)
-    print("solved problem", time() - start)
     return lmbda_tilde.value
 
 
@@ -111,7 +106,6 @@ def sparsify_lmbda(lmbda, gamma_ts, group_masks, maxiter=10, tol=1e-3, reg=1):
     delta = 1
     lmbda_tilde = np.copy(lmbda)
     lmbda_norms = np.linalg.norm(lmbda_tilde, axis=0, keepdims=True)
-    print("lmbda_norms", lmbda_norms)
     lmbda_tilde = lmbda_tilde / lmbda_norms
     initial_lmbda_tilde = np.copy(lmbda_tilde)
     
@@ -123,7 +117,6 @@ def sparsify_lmbda(lmbda, gamma_ts, group_masks, maxiter=10, tol=1e-3, reg=1):
     i = 0
     while delta > tol:
         i += 1
-        print("getting sparse lmbda")
         lmbda_tilde_new = get_sparse_lmbda(lmbda, gamma_ts, gamma_tildes, L=lmbda.shape[0],
                                            K=lmbda.shape[1],
                                            reg=reg,
@@ -131,19 +124,10 @@ def sparsify_lmbda(lmbda, gamma_ts, group_masks, maxiter=10, tol=1e-3, reg=1):
         delta = np.max(np.abs(lmbda_tilde - lmbda_tilde_new))
         lmbda_tilde = lmbda_tilde_new
         
-        print("before regression", [np.linalg.norm(gamma_t @ lmbda.T - gamma_tilde_t @ lmbda_tilde.T) 
-                                    for  gamma_t, gamma_tilde_t in zip(gamma_ts, gamma_tildes)
-                                   ])
         gamma_tildes_new = [
             np.linalg.lstsq(lmbda_tilde, lmbda@gamma_t.T)[0].T for gamma_t in gamma_ts
         ]
         
-        print([(gamma_t.shape, gamma_tilde_t.shape)  for  gamma_t, gamma_tilde_t in zip(gamma_ts, gamma_tildes_new)
-                                   ])
-              
-        print("after regression", [np.linalg.norm(gamma_t @ lmbda.T - gamma_tilde_t @ lmbda_tilde.T) 
-                                    for  gamma_t, gamma_tilde_t in zip(gamma_ts, gamma_tildes_new)
-                                   ])
               
         delta = max(np.max([np.max(np.abs(g - g_new)) for g, g_new in zip(gamma_tildes, gamma_tildes_new)]),
                     delta)
@@ -155,8 +139,6 @@ def sparsify_lmbda(lmbda, gamma_ts, group_masks, maxiter=10, tol=1e-3, reg=1):
         
         if i >= maxiter:
             break
-            
-        print(f"iteration {i} delta was {delta}, lmbda net delta was {np.max(np.abs(initial_lmbda_tilde - lmbda_tilde))}")
             
     return lmbda_tilde, gamma_tildes
 
@@ -192,7 +174,7 @@ def impute_andrew_chen(missing_data_type, min_chars, maxiter, percentile_rank_ch
         mu, sigma = em(data_t, eps=1e-4, min_chars=min_chars, max_iter=maxiter)
         return np.expand_dims(impute_given_mu_sigma(data_t, mu, sigma, min_chars), axis=0), sigma
     
-    res = [x for x in Parallel(n_jobs=15, verbose=5)(delayed(impute_t)(masked_lagged_chars[t]) 
+    res = [x for x in Parallel(n_jobs=15, verbose=0)(delayed(impute_t)(masked_lagged_chars[t]) 
                                                                  for t in range(masked_lagged_chars.shape[0]))]
     imputed_data = np.concatenate([x[0] for x in res], axis=0)
         
@@ -210,7 +192,6 @@ def conditional_mean_and_var(Sigma, mu, i_mask, i_data):
 
     
     conditional_mean = mu1 + Sigma_12 @ np.linalg.inv(Sigma_22) @ (i_data[i_mask] - mu2)
-#     print(np.linalg.cond(Sigma_22), conditional_mean)
     assert np.all(~np.isnan(conditional_mean))
     
     return conditional_mean, conditional_var
@@ -264,7 +245,6 @@ def em(data, eps=0.1, min_chars=10, max_iter=100, log=False):
                                                               - e_hats[i].reshape(-1, 1) @ mu_new.reshape(1, -1)
                                                               - mu_new.reshape(-1, 1) @ mu_new.reshape(1, -1)
                                                             for i in range(N)], axis=0)))
-            print(f"iteration {j} delta_m was {delta_m} delta_s was {delta_s} log like was {log_like}")
         mu = mu_new
         Sigma = Sigma_new
         if max(delta_s, delta_m) < eps:
@@ -293,10 +273,14 @@ def impute_chars_freyweb(chars, regr_chars, missing_data_type, percentile_rank_c
     gamma_ts = masked_lagged_chars[:,:,char_mask]
     mask = np.all(~np.isnan(gamma_ts), axis=2)
     gamma_ts[~mask] = np.nan
-    imputed_chars = imputation_utils.impute_chars(gamma_ts, masked_lagged_chars, 
-                                             "None", None, char_groupings, num_months_train=T,
-                                                            eval_char_data=None,
-                                                               window_size=1)
+    
+    exp_gamma_ts = np.concatenate([np.expand_dims(gamma_ts, axis=2) for _ in range(chars.shape[-1])], axis=2)
+    print(exp_gamma_ts.shape)
+    
+    imputed_chars = imputation_model_simplified.impute_beta_combined_regression(
+        masked_lagged_chars, xs_imps=None,
+        sufficient_statistics=exp_gamma_ts, beta_weights=None, constant_beta=False, get_betas=False, gamma_ts=None,
+        use_factors=False, noise=None, reg=None, switch_off_on_suff_stats=False)
     
     return imputed_chars
 

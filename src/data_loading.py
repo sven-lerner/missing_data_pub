@@ -1,5 +1,4 @@
 import numpy as np
-from tqdm.notebook import tqdm
 import pandas as pd
 
 
@@ -20,7 +19,7 @@ def percentile_rank(x, UNK=np.nan):
 def percentile_rank_panel(char_panel):
     ret_panel = np.zeros(char_panel.shape)
     ret_panel[:, :, :] = np.nan
-    for t in tqdm(range(char_panel.shape[0])):
+    for t in range(char_panel.shape[0]):
         for i in range(char_panel.shape[2]):
             ret_panel[t, :, i] = percentile_rank(char_panel[t, :, i])
         assert np.sum(np.isnan(ret_panel[t])) > 0, 'something fucky'

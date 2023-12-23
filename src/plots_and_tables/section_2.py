@@ -1,11 +1,12 @@
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning) 
+warnings.filterwarnings("ignore")
+
 from plots_and_tables import plot_base
-import missing_data_utils
-from abc import ABC, abstractmethod
+from abc import ABC
 import numpy as np
-import matplotlib.pyplot as plt
 from tqdm.notebook import tqdm 
-import imputation_utils, logit_models_and_masking
-import matplotlib.pyplot as plt
+import logit_models_and_masking
 import pandas as pd
 from sklearn import metrics
 import pandas as pd
@@ -202,15 +203,12 @@ class MissingLogitRegressions(SectionTwoTableBase):
                                         include_missing_gap=include_missing_gap,
                                         missing_gaps=missing_gap[:tover2])
 
-            # print("creating the model", X.shape, "training examples", np.sum(Y), "positives")
             logit_model = sm.Logit(Y, X) #Create model instance
-            # print("fitting the model")
             result_start = logit_model.fit(method = "newton", maxiter=50, disp=False,
                                         kwargs={"tol":1e-8}) #Fit model, 0.652114
             train_fpr, train_tpr, _ = metrics.roc_curve(Y, result_start.predict(X))
             start_agg_train_aocs.append(metrics.auc(train_fpr, train_tpr))
 
-            # print(metrics.auc(train_fpr, train_tpr))
             test_input_filter[0] = 0
 
             X, Y, idxs, feature_names = logit_models_and_masking.get_pooled_x_y_from_panel(percentile_rank_chars[tover2:], 
@@ -229,13 +227,8 @@ class MissingLogitRegressions(SectionTwoTableBase):
 
 
             test_fpr, test_tpr, _ = metrics.roc_curve(Y, result_start.predict(X))
-            # print(metrics.auc(test_fpr, test_tpr))
+
             start_agg_test_aocs.append(metrics.auc(test_fpr, test_tpr))
-            
-            # plt.plot(test_fpr, test_tpr, label='test')
-            # plt.plot(train_fpr, train_tpr, label='train')
-            # plt.legend()
-            # plt.show()
 
             start_std_errs.append(result_start.bse)
             start_t_stats.append(result_start.tvalues)
@@ -314,17 +307,13 @@ class MissingLogitRegressions(SectionTwoTableBase):
                                         include_missing_gap=include_missing_gap,
                                         missing_gaps=missing_gap[:tover2])
 
-            # print("creating the model", X.shape, "training examples", np.sum(Y), "positives")
             logit_model = sm.Logit(Y, X) #Create model instance
-            # print("fitting the model")
             result_middle = logit_model.fit(method = "newton", maxiter=50, disp=False,
                                         kwargs={"tol":1e-8}) #Fit model
             train_fpr, train_tpr, _ = metrics.roc_curve(Y, result_middle.predict(X))
             
 
             middle_agg_train_aocs.append(metrics.auc(train_fpr, train_tpr))
-
-            # print(metrics.auc(train_fpr, train_tpr), metrics.log_loss(Y, result_middle.predict(X)))
 
             input_filter[tover2] = 0
             X, Y, idxs, feature_names = logit_models_and_masking.get_pooled_x_y_from_panel(percentile_rank_chars[tover2:], 
@@ -343,11 +332,6 @@ class MissingLogitRegressions(SectionTwoTableBase):
 
 
             test_fpr, test_tpr, _ = metrics.roc_curve(Y, result_middle.predict(X))
-            # print(metrics.auc(test_fpr, test_tpr), metrics.log_loss(Y, result_middle.predict(X)))
-            # plt.plot(test_fpr, test_tpr, label='test')
-            # plt.plot(train_fpr, train_tpr, label='train')
-            # plt.legend()
-            # plt.show()
             
             middle_agg_test_aocs.append(metrics.auc(test_fpr, test_tpr))
 
@@ -404,13 +388,11 @@ class MissingLogitRegressions(SectionTwoTableBase):
                                         include_missing_gap=False,
                                         missing_gaps=None)
 
-            # print("creating the model")
+
             logit_model = sm.Logit(Y, X, disp=False) #Create model instance
-            # print("fitting the model")
             result_end = logit_model.fit(method = "newton", maxiter=50, disp=False) #Fit model
             train_fpr, train_tpr, _ = metrics.roc_curve(Y, result_end.predict(X))
             end_agg_train_aocs.append(metrics.auc(train_fpr, train_tpr))
-            # print(metrics.auc(train_fpr, train_tpr))
 
             input_filter[tover2] = 0
             X, Y, idxs, feature_names = logit_models_and_masking.get_pooled_x_y_from_panel(percentile_rank_chars[tover2:], 

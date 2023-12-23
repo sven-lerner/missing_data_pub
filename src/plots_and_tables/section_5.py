@@ -1,19 +1,18 @@
-import os
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning) 
 
-from plots_and_tables import plot_base
-import missing_data_utils
+from plots_and_tables import plot_base, revision_utils
 from abc import ABC, abstractmethod
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm.notebook import tqdm 
-import imputation_utils,logit_models_and_masking, imputation_metrics, imputation_model_simplified
+import imputation_utils, imputation_model_simplified
 import matplotlib.pyplot as plt
 import pandas as pd
 import itertools
 import os
 from matplotlib import patches
-from multiprocessing import Pool
 from joblib import Parallel, delayed
+
 
 class SectionFivePlotBase(plot_base.PaperPlot, ABC):
     section = 'section5'
@@ -238,74 +237,6 @@ char_groupings  = [('A2ME', "Q"),
 ('VAR', 'M')]
 char_map = {x[0]:x[1] for x in char_groupings}
 
-
-class AggregateXSImputationErrors(SectionFiveTableBase):
-    name = 'XSImputationErrors'
-    description = ''
-    sigfigs = 2
-    norm_func = np.sqrt
-    
-    def setup(self, percentile_rank_chars, chars, monthly_updates, char_groupings):
-        fp_mask = np.all(~np.isnan(percentile_rank_chars), axis=2)
-        file_names = ['global_fwbw', 'global_fw', 'global_bw', 'global_xs',
-                     'global_ts', 'local_bw', 'local_xs', 'prev_val', 'local_ts',
-                     'xs_median', 'indus_median']
-        plot_names = ["global BF-XS", "global F-XS", "global B-XS", "global XS",
-                      "global B",
-                        "local B-XS", "local XS",  "prev", "local B",
-                      "XS-median", "ind-median"]
-        data = []
-        columns = []
-        update_chars = np.copy(percentile_rank_chars)
-        for i, c in enumerate(chars):
-            if char_map[c] !='M':
-                update_chars[~(monthly_updates == 1),i] = np.nan
-        
-        eval_maps = {
-            '_out_of_sample_MAR': "MAR_eval_data",
-            '_out_of_sample_logit': "logit_eval_data",
-            '_out_of_sample_block': 'prob_block_eval_data',
-        }
-        fit_maps = {
-            '_out_of_sample_MAR': "MAR_fit_data",
-            '_out_of_sample_logit': "logit_fit_data",
-            '_out_of_sample_block': 'prob_block_fit_data',
-        }
-        tags = ['_in_sample', '_out_of_sample_MAR', 
-                '_out_of_sample_block', 
-                '_out_of_sample_logit']
-        import os
-        for tag in tags:
-            if tag != '_in_sample':
-                assert os.path.exists('../data/imputation_cache/' + eval_maps[tag] + '.npz'), \
-                    '../data/imputation_cache/' + eval_maps[tag] + '.npz' + ' does not exist'
-            for fname in file_names:
-                assert os.path.exists('../data/imputation_cache/' + fname + tag + '.npz'), \
-                    fname + tag + '.npz' + ' does not exist'
-        
-        for tag in tags:
-            if tag == '_in_sample':
-                eval_chars = update_chars
-            else:
-                eval_chars = imputation_utils.load_imputation(eval_maps[tag])
-            eval_chars[fp_mask,:] = np.nan
-            
-            def get_rmse(pred, gt):
-                diff = np.square(pred - gt)
-                q_mask = np.isin(chars, [x for x in chars if char_groupings[x] != 'M'])
-                m_mask = np.isin(chars, [x for x in chars if char_groupings[x] == 'M'])
-                m_rmse = np.sqrt(np.nanmean(np.nanmean(np.nanmean(diff[:,:,m_mask], axis=2), axis=0), axis=0))
-                q_rmse = np.sqrt(np.nanmean(np.nanmean(np.nanmean(diff[:,:,q_mask], axis=2), axis=0), axis=0))
-                agg_rmse = np.sqrt(np.nanmean(np.nanmean(np.nanmean(diff, axis=2), axis=0), axis=0))
-                return agg_rmse, q_rmse, m_rmse
-            
-            metrics = [get_rmse(imputation_utils.load_imputation(fname + tag), eval_chars) for fname in file_names]
-
-            data.append([[round(x, 5) for x in y] for y in metrics])
-            columns += [x + tag for x in ['aggregate', "quarterly", 'monthly']]
-        self.data_df = pd.DataFrame(data=np.concatenate(data, axis=1), index=plot_names, columns=columns)
-
-        
 class AggregateImputationErrorsFullDataset(SectionFiveTableBase):
     name = 'AggregateImputationErrorsFullDataset'
     description = ''
@@ -395,91 +326,6 @@ class AggregateImputationErrorsFullDataset(SectionFiveTableBase):
         data = [x[0] for x in results]
         columns = sum([x[1] for x in results], [])
         self.data_df = pd.DataFrame(data=np.concatenate(data, axis=1), index=plot_names, columns=columns)
-
-        
-class AggregateImputationErrors(SectionFiveTableBase):
-    name = 'ImputationErrors'
-    description = ''
-    sigfigs = 2
-    norm_func = np.sqrt
-    
-    def setup(self, percentile_rank_chars, chars, monthly_updates):
-        file_names = [
-            'global_fwbw', 
-                      'global_fw',
-                      'global_bw',
-                      'global_xs',
-                      'global_ts', 
-                      'local_bw',
-                      'local_xs', 
-                      'prev_val',
-                      'local_ts',
-                      'xs_median', 
-                      'indus_median',
-                     ]
-        plot_names = [
-            "global BF-XS",
-            "global F-XS",
-            "global B-XS",
-            "global XS",
-            "global B",
-            "local B-XS",
-            "local XS",  
-            "prev", 
-            "local B",
-            "XS-median",
-            "ind-median",
-        ]
-        
-        
-        data = []
-        columns = []
-        update_chars = np.copy(percentile_rank_chars)
-        for i, c in enumerate(chars):
-            if char_map[c] !='M':
-                update_chars[~(monthly_updates == 1),i] = np.nan
-        
-        eval_maps = {
-            '_out_of_sample_MAR': "MAR_eval_data",
-            '_out_of_sample_logit': "logit_eval_data",
-            '_out_of_sample_block': 'prob_block_eval_data',
-        }
-        fit_maps = {
-            '_out_of_sample_MAR': "MAR_fit_data",
-            '_out_of_sample_logit': "logit_fit_data",
-            '_out_of_sample_block': 'prob_block_fit_data',
-        }
-        tags = ['_in_sample', 
-                '_out_of_sample_MAR', 
-                '_out_of_sample_block', 
-                '_out_of_sample_logit'
-               ]
-        import os
-        
-        def run_tag(tag):
-            if tag == '_in_sample':
-                eval_chars = np.copy(update_chars)
-                lt_10_mask = np.sum(np.isnan(percentile_rank_chars), axis=2) > 35
-            else:
-                eval_chars = imputation_utils.load_imputation(eval_maps[tag])
-                lt_10_mask = np.sum(np.isnan(imputation_utils.load_imputation(fit_maps[tag])), axis=2) > 35
-
-
-            def func_call(fname, eval_data, groups):
-                return imputation_utils.get_imputation_metrics(imputation_utils.load_imputation(fname + tag), 
-                                      eval_char_data=eval_data, monthly_update_mask=None, 
-                                      char_groupings=groups, norm_func=None)    
-            metrics = [func_call(i, eval_chars, char_groupings) for i in file_names]
-
-            ret_data = [[round(self.norm_func(np.nanmean(x)), 5) for x in y] for y in metrics]
-            ret_cols = [x + tag for x in ['aggregate', "quarterly", 'monthly']]
-            return ret_data, ret_cols
-            
-        results = list(Parallel(n_jobs=4)(delayed(run_tag)(tag) for tag in tags))
-        data = [x[0] for x in results]
-        columns = sum([x[1] for x in results], [])
-        self.data_df = pd.DataFrame(data=np.concatenate(data, axis=1), index=plot_names, columns=columns)
-
 
         
 class AggregateImputationR2FullDataset(SectionFiveTableBase):
@@ -580,112 +426,6 @@ class AggregateImputationR2FullDataset(SectionFiveTableBase):
                 
             
             r2s = [get_r2(eval_chars, i, monthly_char_mask, quarterly_char_mask) for i in subsets]
-            ret_data = [[round(x, 5) for x in y] for y in r2s]
-            ret_cols = [x + tag for x in ['aggregate', "quarterly", 'monthly']]
-            return ret_data, ret_cols
-        
-        results = list(Parallel(n_jobs=4)(delayed(run_tag)(tag) for tag in tags))
-        data = [x[0] for x in results]
-        columns = sum([x[1] for x in results], [])
-        self.data_df = pd.DataFrame(data=np.concatenate(data, axis=1), index=plot_names, columns=columns)
-
-        
-class AggregateImputationR2(SectionFiveTableBase):
-    name = 'AggregateImputationR2'
-    description = ''
-    sigfigs = 2
-    norm_func = np.sqrt
-    
-    def setup(self, percentile_rank_chars, chars, monthly_updates):
-        file_names = [
-            'global_fwbw', 
-                      'global_fw',
-                      'global_bw',
-                      'global_xs',
-                      'global_ts', 
-                      'local_bw',
-                       "global_bxs_resid_ts",
-                      'local_xs', 
-                      'prev_val',
-                      'local_ts',
-                      'xs_median', 
-                      'indus_median'
-                     ]
-        plot_names = [
-            "global BF-XS",
-            "global F-XS",
-            "global B-XS",
-            "global XS",
-            "global B",
-            "local B-XS",
-            "XS + AR 1 Model",
-            "local XS",  
-            "prev", 
-            "local B",
-            "XS-median",
-            "ind-median"
-        ]
-        data = []
-        columns = []
-        update_chars = np.copy(percentile_rank_chars)
-        for i, c in enumerate(chars):
-            if char_map[c] !='M':
-                update_chars[~(monthly_updates == 1),i] = np.nan
-        
-        eval_maps = {
-            '_out_of_sample_MAR': "MAR_eval_data",
-            '_out_of_sample_logit': "logit_eval_data",
-            '_out_of_sample_block': 'prob_block_eval_data',
-        }
-        fit_maps = {
-            '_out_of_sample_MAR': "MAR_fit_data",
-            '_out_of_sample_logit': "logit_fit_data",
-            '_out_of_sample_block': 'prob_block_fit_data',
-        }
-        tags = ['_in_sample', '_out_of_sample_MAR', 
-                '_out_of_sample_block', 
-                '_out_of_sample_logit']
-        import os
-        for tag in tags:
-            if tag != '_in_sample':
-                assert os.path.exists('../data/current/imputation_cache/' + eval_maps[tag] + '.npz'), \
-                    '../data/current/imputation_cache/' + eval_maps[tag] + '.npz' + ' does not exist'
-            for fname in file_names:
-                assert os.path.exists('../data/current/imputation_cache/' + fname + tag + '.npz'), \
-                    fname + tag + '.npz' + ' does not exist'
-        
-        monthly_chars = [x for x in chars if char_map[x] == 'M']
-        monthly_char_mask = np.isin(chars, monthly_chars)
-        quarterly_char_mask = ~monthly_char_mask
-        
-        def run_tag(tag):
-            if tag == '_in_sample':
-                eval_chars = np.copy(update_chars)
-                lt_10_mask = np.sum(np.isnan(percentile_rank_chars), axis=2) > 35
-            else:
-                eval_chars = imputation_utils.load_imputation(eval_maps[tag])
-                lt_10_mask = np.sum(np.isnan(imputation_utils.load_imputation(fit_maps[tag])), axis=2) > 35
-            eval_chars[lt_10_mask] = np.nan
-            def get_r2(tgt, fname, monthly_char_mask, quarterly_char_mask):
-                imputed = imputation_utils.load_imputation(fname + tag)
-                tgt = np.copy(tgt)
-                tgt[np.isnan(imputed)] = np.nan
-                
-                overal_r2 = np.nanmean(1 - np.nansum(np.square(tgt - imputed), axis=(1,2)) /
-                            np.nansum(np.square(tgt), axis=(1,2)), axis=0)
-
-                monthly_r2 = np.nanmean(1 - np.nansum(np.square(tgt[:,:,monthly_char_mask] - 
-                                                                  imputed[:,:,monthly_char_mask]), axis=(1,2)) /
-                            np.nansum(np.square(tgt[:,:,monthly_char_mask]), axis=(1,2)), axis=0)
-                
-                quarterly_r2 = np.nanmean(1 - np.nansum(np.square(tgt[:,:,quarterly_char_mask] - 
-                                                                  imputed[:,:,quarterly_char_mask]), axis=(1,2)) /
-                            np.nansum(np.square(tgt[:,:,quarterly_char_mask]), axis=(1,2)), axis=0)
-                
-                return overal_r2, quarterly_r2, monthly_r2
-                
-            
-            r2s = [get_r2(eval_chars, i, monthly_char_mask, quarterly_char_mask) for i in file_names]
             ret_data = [[round(x, 5) for x in y] for y in r2s]
             ret_cols = [x + tag for x in ['aggregate', "quarterly", 'monthly']]
             return ret_data, ret_cols
@@ -940,8 +680,8 @@ class ImputationErrorPlots(SectionFiveTableBase):
                                                     save_name=f'{tag}-table_1_reg', nans_ok='logit' in tag)
             imputation_utils.plot_metrics_over_time(table_2_metrics, table_2_plotnames, date_vals,
                                         save_name=f'{tag}-table_2_reg', nans_ok='logit' in tag)
-        list(Parallel(n_jobs=4)(delayed(run_tag)(tag) for tag in 
-                               ['_in_sample', '_out_of_sample_MAR', '_out_of_sample_block', '_out_of_sample_logit']))
+        [run_tag(tag) for tag in 
+                               ['_in_sample', '_out_of_sample_MAR', '_out_of_sample_block', '_out_of_sample_logit']]
             
     def run(self):
         pass
@@ -1043,66 +783,6 @@ class ImputationErrorsByMissingType(SectionFiveTableBase):
         self.data_df = pd.DataFrame(data=np.concatenate(data, axis=1), index=plot_names, columns=columns)
         
 
-class ImputationErrorsBySizeDecile(SectionFiveTableBase):
-    description = ''
-    sigfigs = 2
-    norm_func = np.sqrt
-    name = 'ImputationErrorsBySizeDecile'
-    
-
-    def setup(self, percentile_rank_chars, chars, monthly_updates):
-        file_names = ['local_bw', 'local_xs', 'local_ts']
-        plot_names = ['local B-XS', 'local XS', 'local B']
-        data = []
-        columns = []
-        update_chars = np.copy(percentile_rank_chars)
-        for i, c in enumerate(chars):
-            if char_map[c] !='M':
-                update_chars[~(monthly_updates == 1),i] = np.nan
-        
-        eval_maps = {
-            '_out_of_sample_MAR': "MAR_eval_data",
-            '_out_of_sample_block': "prob_block_eval_data",
-            '_out_of_sample_logit': "logit_eval_data"
-        }
-        
-        flag_maps = {
-            '_out_of_sample_MAR': "MAR_flag_panel",
-            '_out_of_sample_block': "prob_block_flag_panel",
-            '_out_of_sample_logit': "logit_flag_panel"
-        }
-        missing_maps = {}
-        size_ind = np.argwhere(chars=='ME')[0][0]
-        sizes = percentile_rank_chars[:,:,size_ind]
-        tags = ['_in_sample', '_out_of_sample_MAR', '_out_of_sample_block', '_out_of_sample_logit']
-        for dec in range(10):
-            fliter = np.logical_and(sizes >= (-0.5 + dec * 0.1), sizes <=( -0.5 + (dec+1) * 0.1))
-            for tag in tags:
-                if tag == '_in_sample':
-                    eval_chars = np.copy(update_chars)
-
-                else:
-                    eval_chars = imputation_utils.load_imputation(eval_maps[tag])
-
-                eval_chars[~fliter] = np.nan
-                
-                def func_call(fname, eval_data, groups):
-                    return imputation_utils.get_imputation_metrics(imputation_utils.load_imputation(fname + tag), 
-                                      eval_char_data=eval_data, monthly_update_mask=None, 
-                                      char_groupings=groups, norm_func=None)    
-                metrics = list(Parallel(n_jobs=4)(delayed(func_call)(i, eval_chars, char_groupings) for i in file_names))
-
-                res = [[round(self.norm_func(np.nanmean(x)), 5) for x in y] for y in metrics]
-                missing_maps[(dec + 1, tag)] = res
-        data = []
-        indexs = []
-        for decile in range(1, 11):
-            for i, plot_name in enumerate(plot_names):
-                data.append(sum([missing_maps[(decile, x)][i] for x in tags], []))
-                indexs.append((decile, plot_name))
-        columns = sum([[x + tag for x in ['all', 'quarterly', 'monthly']] for tag in tags], [])
-        self.data_df = pd.DataFrame(data=data, index=indexs, columns=columns)
-        
 class ImputationErrorsByCharQuintile(SectionFiveTableBase):
     description = ''
     sigfigs = 2
@@ -1329,7 +1009,7 @@ class InfoUsedForImputationBW(SectionFivePlotBase):
 
         #calculate autocorrelations
         mean_acfs = []
-        for i in tqdm(range(45)):
+        for i in range(45):
             acfs = []
             for j in range(update_chars[:,:,i].shape[1]):
                 in_sample = ~np.isnan(percentile_rank_chars[:,j,i])
@@ -1363,170 +1043,115 @@ class InfoUsedForImputationBW(SectionFivePlotBase):
         plt.ylabel("weight")
         plt.legend(prop={'size': 20}, framealpha=0.5)
                       
-        
-
-class BW_BetasTable(SectionFiveTableBase):
-    description = ''
-    sigfigs = 2
-    name = 'BW_BetasTable'
-    description = ''
+            
+class ComparisonWithAlternativeMethods(SectionFiveTableBase):
     
-    def setup(self, percentile_rank_chars, return_panel, chars):
+    description=''
+    name = 'ComparisonWithAlternativeMethods'
+    sigfigs=3
+    
+    def setup(self, percentile_rank_chars, return_panel, char_groupings, chars,
+        regular_chars, permnos, dates, rts, char_map):
         
-        gamma_ts, lmbda = imputation_model_simplified.impute_panel_xp_lp(
-                    char_panel=percentile_rank_chars, 
-                    return_panel= return_panel, min_chars=10, K=20, 
-                    num_months_train=percentile_rank_chars.shape[0],
-                    reg=0.01,
-                    time_varying_lambdas=False,
-                    window_size=548, 
-                    n_iter=3,
-                    eval_data=None,
-                    allow_mean=False)
+        regr_chars = ['VAR', 'IdioVol', 'SPREAD', 'D2P', 'R2_1', 'ME']
+        self.metrics = []
         
-        imputed = np.concatenate([np.expand_dims(x @ lmbda.T, axis=0) for x in gamma_ts])
-        resids = percentile_rank_chars - imputed
+        monthly_chars = [x for x in chars if char_map[x] == 'M']
+        monthly_char_mask = np.isin(chars, monthly_chars)
+        quarterly_char_mask = ~monthly_char_mask
+
+        eval_maps = {
+                'MAR': "MAR_eval_data",
+                'BLOCK': "prob_block_eval_data",
+                'logit': "logit_eval_data",
+            }
+        columns = []
         
-        suff_stats, _ = imputation_model_simplified.get_sufficient_statistics_last_val(percentile_rank_chars,
-                                                                                       max_delta=None,
-                                                                           residuals=resids)
+        def get_r2(tgt, imputed, monthly_char_mask, quarterly_char_mask):
+            tgt = np.copy(tgt)
+            tgt[np.isnan(imputed)] = np.nan
+
+            overal_r2 = np.nanmean(
+                1 - np.nansum(np.square(tgt - imputed), axis=(1,0)) /
+                    np.nansum(np.square(tgt), axis=(1,0)), 
+                axis=0
+            )
+
+            monthly_r2 = np.nanmean(
+                1 - np.nansum(np.square(tgt[:,:,monthly_char_mask] - imputed[:,:,monthly_char_mask]), axis=(1,0)) /
+                    np.nansum(np.square(tgt[:,:,monthly_char_mask]), axis=(1,0)), 
+                axis=0
+            )
+
+            quarterly_r2 = np.nanmean(
+                1 - np.nansum(np.square(tgt[:,:,quarterly_char_mask] - imputed[:,:,quarterly_char_mask]), axis=(1,0)) /
+                    np.nansum(np.square(tgt[:,:,quarterly_char_mask]), axis=(1,0)), 
+                axis=0
+            )
+
+            return overal_r2, quarterly_r2, monthly_r2
         
-        _, bw_betas = imputation_model_simplified.impute_beta_combined_regression(
-            percentile_rank_chars, imputed, sufficient_statistics=suff_stats, 
-            beta_weights=None, constant_beta=True, get_betas=True
+        self.r2s = []
+        
+        for t1, t2 in [('IN SAMPLE', '_in_sample'),
+            ('MAR', '_out_of_sample_MAR'), ('BLOCK', '_out_of_sample_block'), ('logit', '_out_of_sample_logit')]:
+            tag_metrics = []
+            tag_r2s = []
+            
+            if t2 != '_in_sample':
+                eval_chars = imputation_utils.load_imputation(eval_maps[t1])
+            else:
+                eval_chars = percentile_rank_chars
+            
+            imp = imputation_utils.load_imputation("local_bw" + t2)
+            mask = np.isnan(imp)
+            eval_chars[mask] = np.nan
+            m = imputation_utils.get_imputation_metrics(imp, 
+                                                  eval_char_data=eval_chars, monthly_update_mask=None, 
+                                                  char_groupings=char_groupings, norm_func=None)   
+            tag_metrics.append([round(np.sqrt(np.nanmean(x)), 5) for x in m])
+            tag_r2s.append([round(x, 5) for x in get_r2(eval_chars, imp, monthly_char_mask, quarterly_char_mask)])
+            
+            imp = imputation_utils.load_imputation("local_xs" + t2)
+            m = imputation_utils.get_imputation_metrics(imp, 
+                                                  eval_char_data=eval_chars, monthly_update_mask=None, 
+                                                  char_groupings=char_groupings, norm_func=None)   
+            tag_metrics.append([round(np.sqrt(np.nanmean(x)), 5) for x in m])
+            tag_r2s.append([round(x, 5) for x in get_r2(eval_chars, imp, monthly_char_mask, quarterly_char_mask)])
+
+            imp = revision_utils.impute_chars_freyweb(chars, regr_chars=regr_chars, 
+                                                        missing_data_type=t1,
+                                                     percentile_rank_chars=percentile_rank_chars)
+            
+            m = imputation_utils.get_imputation_metrics(imp, 
+                                                  eval_char_data=eval_chars, monthly_update_mask=None, 
+                                                  char_groupings=char_groupings, norm_func=None)   
+            tag_metrics.append([round(np.sqrt(np.nanmean(x)), 5) for x in m])
+            tag_r2s.append([round(x, 5) for x in get_r2(eval_chars, imp, monthly_char_mask, quarterly_char_mask)])
+            
+            imp, _ = revision_utils.impute_andrew_chen(t1, min_chars=1, maxiter=10,
+                                                     percentile_rank_chars=percentile_rank_chars)
+            
+            m = imputation_utils.get_imputation_metrics(imp, 
+                                                  eval_char_data=eval_chars, monthly_update_mask=None, 
+                                                  char_groupings=char_groupings, norm_func=None,
+                                                       clip=False)   
+            tag_metrics.append([round(np.sqrt(np.nanmean(x)), 5) for x in m])
+            tag_r2s.append([round(x, 5) for x in get_r2(eval_chars, imp, monthly_char_mask, quarterly_char_mask)])
+            
+            self.metrics.append(tag_metrics)
+            self.r2s.append(tag_r2s)
+            columns += [x + '-' + t1 for x in ['aggregate', "quarterly", 'monthly']]
+            
+            
+            
+            
+            
+        labels = ['local B-XS', 'local XS', 'F\&W', 'EM']
+        self.data_df = pd.DataFrame(
+            data=[sum([x[i] for x in self.metrics], []) for i in range(4)], index=labels, columns=columns
         )
         
-        self.data_df = pd.DataFrame(data = bw_betas[0], index=chars, columns=['CC', 'Prev Val', 'Prev Resid'])
-        
-        
-        
-class FactorStructure(SectionFivePlotBase):
-    name = 'FactorStructure'
-    description = ''
-    
-    def setup(self, percentile_rank_chars, return_panel, chars):
-        
-        char_groupings = {
-            "Past Returns" : ['R2_1', 'R12_2', 'R12_7', 'R36_13', 'R60_13'],
-            "Investment": ['INV', 'NOA', 'DPI2A', 'NI'],
-            "Profitability": ['PROF', 'ATO', 'CTO', 'FC2Y', 'OP', 'PM', 'RNA', 'ROA', 'ROE', 'SGA2S', 
-                             'D2A'],
-            "Intangibles": ['AC', 'OA', 'OL', 'PCM'],
-            "Value": ['A2ME', 'B2M',  'C2A', 'CF2B', 'CF2P', 'D2P', 'E2P', 'Q',  'S2P', 'LEV'],
-            "Trading Frictions": ['AT', 'BETA_d', 'IdioVol', 'ME', 'TURN', 'BETA_m',
-                     'HIGH52',  'RVAR', 'SPREAD', 'SUV', 'VAR']
-        }
-        base_colors = ['r', 'b', 'g', 'y', 'c', 'orange']
-        def plot_factor(lmbda, index):
-            fig, ax = plt.subplots(figsize=(15,10))
-            bars = []
-            bar_locations = [val for val in[3*x for x in range(45)]]
-            tick_locations = [3*x for x in range(45)]
-
-            ticks = []
-            colors = []
-            k = 0
-
-            groups = []
-            group_colors = []
-
-            bar_maxs = []
-
-            for i, grouping in enumerate(char_groupings):
-                groups.append(grouping)
-                group_colors += [base_colors[i]]
-                for char in char_groupings[grouping]:
-                    ticks.append(char)
-                    colors += [base_colors[i]]
-
-                    char_ind = np.argwhere(chars==char)[0]
-
-                    bars += [lmbda[char_ind, index][0]]
-                    bar_maxs.append(abs(lmbda[char_ind, index][0]))
-
-
-            plt.bar(bar_locations, bars, color=colors)
-            plt.xticks(ticks=tick_locations, labels=ticks)
-            plt.xticks(rotation=90)
-            fig.patch.set_facecolor('white')
-
-            for i in np.where((np.max(bar_maxs) - bar_maxs) / np.max(bar_maxs) < 0.5 )[0]:
-                ax.get_xticklabels()[i].set_color("green")
-
-            for i in np.where((np.max(bar_maxs) - bar_maxs) / np.max(bar_maxs) < 0.1 )[0]:
-                ax.get_xticklabels()[i].set_color("red")
-
-            custom_lines = [Line2D([0], [0], color=group_colors[i], lw=4) for i in range(len(groups))]
-
-            ax.legend(custom_lines, groups)
-            plt.show()
-        gamma_ts, lmbda, return_mask, missing_counts, beta_lambda, _, _ = imputation_model.impute_panel_xp_lp(
-                percentile_rank_chars, return_panel,
-            min_chars=10, K=6, num_months_train=240, 
-                gamma_0=0, gamma_1=1, gamma_2=0,
-                fully_present=False, intercept=False,
-                alternative_ft_construction=False,
-                hardcoded_mask=None, t_lag_maps=None)
-        for i in range(6):
-            plot_factor(lmbda, i)
-
-    def run(self):
-        pass
-    
-    
-class DataMakeupByType(SectionFiveTableBase):
-    description = ''
-    sigfigs = 2
-    norm_func = np.sqrt
-    name = 'DataMakeupByType'
-    
-
-    def setup(self, percentile_rank_chars, chars, monthly_updates):
-        T = percentile_rank_chars.shape[0]
-        eval_maps = {
-            '_out_of_sample_MAR': "MAR_eval_data",
-            '_out_of_sample_block': "prob_block_eval_data",
-            '_out_of_sample_logit': "logit_eval_data"
-        }
-        fit_maps = {
-            '_out_of_sample_MAR': "MAR_fit_data",
-            '_out_of_sample_block': "prob_block_fit_data",
-            '_out_of_sample_logit': "logit_fit_data"
-        }
-        
-
-        
-        columns = ['start', 'missing', 'end']
-        results = []
-        for tag in ['in_sample', '_out_of_sample_MAR', '_out_of_sample_block', '_out_of_sample_logit']:
-            if tag == 'in_sample':
-                fit_chars = percentile_rank_chars
-                eval_chars = np.isnan(percentile_rank_chars) * np.any(~np.isnan(percentile_rank_chars),\
-                                                                      axis=-1, keepdims=True)
-            else:
-                fit_chars = imputation_utils.load_imputation(fit_maps[tag])
-                eval_chars = imputation_utils.load_imputation(eval_maps[tag])
-                
-            fit_mask = ~np.isnan(fit_chars)
-            eval_mask = ~np.isnan(eval_chars)
-            
-            start_count, middle_count, end_count, total_count = 0, 0, 0, 0
-            always_missing = np.all(~fit_mask, axis=0)
-            first_occ = np.argmax(fit_mask, axis=0)
-            last_occ = T - np.argmax(fit_mask[::-1], axis=0) - 1
-            first_occ[always_missing] = T + 1
-            last_occ[always_missing] = -1
-            
-            for t in tqdm(range(T)):
-                start_count += np.sum(eval_mask[t] * first_occ > t)
-                middle_count += np.sum(eval_mask[t] * (first_occ < t) * (last_occ > t))
-                end_count += np.sum(eval_mask[t] * (first_occ < t) * (last_occ < t))
-                total_count += np.sum(eval_mask[t])
-                
-            results.append([start_count / total_count, 
-                            middle_count / total_count, 
-                            end_count / total_count])
-            
-        self.data_df = pd.DataFrame(results, index=['in sample', 'MAR', 'block', 'logit'], columns=columns)
-            
-            
+        self.r2_data_df = pd.DataFrame(
+            data=[sum([x[i] for x in self.r2s], []) for i in range(4)], index=labels, columns=columns
+        )

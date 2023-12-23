@@ -1,5 +1,7 @@
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning) 
+
 import numpy as np
-from tqdm.notebook import tqdm
 
 def get_imputation_metrics_time_series(imputed_data, gt_data, mask, tgt_char_inds, max_val=None, 
                            tgt_char=None, mse_mask=None):
@@ -9,9 +11,7 @@ def get_imputation_metrics_time_series(imputed_data, gt_data, mask, tgt_char_ind
         mse_mask = mask
     nan_mask = np.ones_like(mse_mask, dtype=float)
     nan_mask[~mse_mask] = np.nan
-    print(np.sum(~np.isnan(nan_mask)))
     if tgt_char is None:
-        print(np.sum(~np.isnan(np.square(imputed_data - gt_data) * nan_mask)))
         mse_by_char = np.nanmean(np.square(imputed_data - gt_data) * nan_mask,
                                                axis=1)
         mmse_over_time = np.nanmean(mse_by_char, axis=1)
@@ -39,7 +39,7 @@ def get_aggregate_imputation_metrics(imputed_data, gt_data, mask, monthly_update
     mean_char_errors = []
     if norm_func is None:
         norm_func = np.square
-    for c, x in enumerate(tqdm(char_freq_list)):
+    for c, x in enumerate(char_freq_list):
         char, freq = x
         diffs = imputed_data[:,:,c] - gt_data[:,:,c]
         if net_mask is None:
@@ -74,7 +74,7 @@ def get_flags(raw_char_panel, return_panel):
     
     flag_panel[~np.isnan(raw_char_panel)] = 1
     
-    for t in tqdm(range(raw_char_panel.shape[0])):
+    for t in range(raw_char_panel.shape[0]):
         
         present_return = np.expand_dims(~np.isnan(return_panel[t]), axis=1)
         nan_chars = np.isnan(raw_char_panel[t])

@@ -1,10 +1,8 @@
 from plots_and_tables import plot_base
 import missing_data_utils
-from abc import ABC, abstractmethod
+from abc import ABC
 import numpy as np
 import matplotlib.pyplot as plt
-from joblib import Parallel, delayed
-from tqdm.notebook import tqdm 
 import imputation_utils, imputation_model_simplified
 import pandas as pd
 import scipy as scp
@@ -70,7 +68,7 @@ class XS_Factor_EV(SectionFourPlotBase):
     def setup(self, return_panel, percentile_rank_chars):
     
         cov_mats = [missing_data_utils.get_cov_mat(percentile_rank_chars[t])
-            for t in tqdm(range(percentile_rank_chars.shape[0]))]
+            for t in range(percentile_rank_chars.shape[0])]
         cov_evals = np.array([sorted(np.linalg.eigh(c)[0])[::-1] for c in cov_mats if np.sum(np.isnan(c)) == 0])
         normed_cov_evals = cov_evals / np.sum(cov_evals, axis=1, keepdims=True)
         from matplotlib.ticker import MaxNLocator
@@ -86,61 +84,6 @@ class XS_Factor_EV(SectionFourPlotBase):
         plt.gca().tick_params(axis='both', which='major', labelsize=15)
 
 
-class Optimal_Num_FactorsMSE(SectionFourPlotBase):
-    name = "Optimal_Num_FactorsMSE"
-    description = ''
-    
-    def setup(self, percentile_rank_chars, return_panel, chars, tag, factor_nums):
-        self.name += '-' + tag
-        
-        flag_panel = imputation_utils.load_imputation(tag + "_flag_panel")
-        eval_data = imputation_utils.load_imputation(tag + "_eval_data")
-        fit_data = imputation_utils.load_imputation(tag + "_fit_data")
-        
-        T = percentile_rank_chars.shape[0]
-        
-        monthly_chars = [x for x in chars if char_map[x] == 'M']
-        monthly_char_mask = np.isin(chars, monthly_chars)
-        quarterly_char_mask = ~monthly_char_mask
-
-        block_metrics_by_num_factors = []
-        for k in factor_nums:    
-            gamma_ts, lmbda = imputation_model_simplified.impute_panel_xp_lp(
-                char_panel=fit_data, 
-                return_panel= return_panel, min_chars=10, K=k, 
-                num_months_train=percentile_rank_chars.shape[0],
-                reg=0.01,
-                time_varying_lambdas=False,
-                window_size=548, 
-                n_iter=1,
-                eval_data=None,
-                allow_mean=False)
-
-            imputation = imputation_utils.impute_chars(gamma_ts, fit_data, 
-                                                 "None", None, char_groupings, num_months_train=T,
-                                                                eval_char_data=eval_data,
-                                                                   window_size=None, lmbda=lmbda, tv_lmbda=False)
-            metrics = imputation_utils.get_imputation_metrics(imputation, 
-                                      eval_char_data=eval_data, monthly_update_mask=None, 
-                                      char_groupings=char_groupings, norm_func=None)
-            
-            rmses = [np.sqrt(np.nanmean(x)) for x in metrics]
-            
-            block_metrics_by_num_factors.append(rmses)
-        
-        agg_mmse = [x[0] for x in block_metrics_by_num_factors]
-        monthly_mmse = [x[2] for x in block_metrics_by_num_factors]
-        quarterly_mmse = [x[1] for x in block_metrics_by_num_factors]
-        plt.figure(figsize=(7.5, 5))
-        plt.gca().tick_params(axis='both', which='major', labelsize=25)
-
-        plt.plot(factor_nums, agg_mmse[:45], label='aggregate')
-        plt.plot(factor_nums, monthly_mmse[:45], label='monthly characteristics')
-        plt.plot(factor_nums, quarterly_mmse[:45], label='quarterly characteristics')
-        plt.gca().tick_params(axis='both', which='major', labelsize=15)
-        plt.legend()
-
-        
 class Optimal_Num_Factors(SectionFourPlotBase):
     name = "number_of_factors_determination_xs"
     description = ''
@@ -400,97 +343,3 @@ class GenCorr(SectionFourPlotBase):
         # plt.plot(date_vals[119:], [x[1] for x in generalized_corrs[19:]], label="Number of Factors")
         plt.ylabel("Generalized Correlation")
         plt.ylim(0, 21)
-
-base_colors = ['r', 'b', 'g', 'y', 'c', 'orange', 'purple']
-from matplotlib.lines import Line2D
-def plot_factor(lmbda, index, save_name=None, char_groupings=None, chars=None):
-    assert char_groupings is not None
-    fig, ax = plt.subplots(figsize=(15,10))
-    bars = []
-    bar_locations = [val for val in[3*x for x in range(45)]]
-    tick_locations = [3*x for x in range(45)]
-    
-    ticks = []
-    colors = []
-    k = 0
-    
-    groups = []
-    group_colors = []
-    
-    bar_maxs = []
-    
-    for i, grouping in enumerate(char_groupings):
-        groups.append(grouping)
-        group_colors += [base_colors[i]]
-        for char in char_groupings[grouping]:
-            ticks.append(char)
-            colors += [base_colors[i]]
-
-            char_ind = np.argwhere(chars==char)[0]
-            
-            bars += [lmbda[char_ind, index][0]]
-            bar_maxs.append(abs(lmbda[char_ind, index][0]))
-    
-    plt.bar(bar_locations, bars, color=colors)
-    plt.xticks(ticks=tick_locations, labels=ticks)
-    plt.xticks(rotation=90)
-    plt.minorticks_off()
-    fig.patch.set_facecolor('white')
-    
-    for i in np.where((np.max(bar_maxs) - bar_maxs) / np.max(bar_maxs) < 0.5 )[0]:
-        ax.get_xticklabels()[i].set_color("green")
-    
-    for i in np.where((np.max(bar_maxs) - bar_maxs) / np.max(bar_maxs) < 0.1 )[0]:
-        ax.get_xticklabels()[i].set_color("red")
-
-    custom_lines = [Line2D([0], [0], color=group_colors[i], lw=4) for i in range(len(groups))]
-
-    ax.legend(custom_lines, groups)
-    
-    
-    if save_name:
-        save_path = f'../images-pdfs/section4/factor_viz-{save_name}-{index}.pdf'
-        plt.savefig(save_path, bbox_inches='tight')
-        
-    plt.show()
-
-class FactorViz(SectionFourPlotBase):
-    name = "FactorViz"
-    description = ""
-    
-    def setup(self, percentile_rank_chars, return_panel, char_map, chars):
-        char_groupings = {
-            "Past Returns" : ['R2_1', 'R12_2', 'R12_7', 'R36_13', 'R60_13', 'HIGH52'],
-            "Investment": ['INV', 'NOA', 'DPI2A', 'NI'],
-            "Profitability": ['PROF', 'ATO', 'CTO', 'FC2Y', 'OP', 'PM', 'RNA', 'ROA', 'ROE', 'SGA2S', 
-                             'D2A'],
-            "Intangibles": ['AC', 'OA', 'OL', 'PCM'],
-            "Value": ['A2ME', 'B2M',  'C2A', 'CF2B', 'CF2P', 'D2P', 'E2P', 'Q',  'S2P'],
-            "Trading Frictions": ['BETA_d', 'BETA_m', 'SPREAD'],
-            "Other": ['AT', 'LEV', 'IdioVol', 'ME', 'TURN', 'RVAR', 'SUV', 'VAR']
-        }
-        
-        gamma_ts, lmbda = imputation_model_simplified.impute_panel_xp_lp(
-                char_panel=percentile_rank_chars, 
-                return_panel= return_panel, min_chars=10, K=10, 
-                num_months_train=percentile_rank_chars.shape[0],
-                reg=0.01,
-                time_varying_lambdas=False,
-                window_size=548, 
-                n_iter=1,
-                eval_data=None,
-                allow_mean=False)
-        
-        for i in range(10):
-            plot_factor(lmbda, i, save_name='econ-cat', char_groupings=char_groupings, chars=chars)
-        
-        freq = {v for k,v in char_map.items()}
-        char_groupings = {
-            f: [x for x in char_map if char_map[x] == f] for f in freq
-        }
-        
-        for i in range(6):
-            plot_factor(lmbda, i, save_name='freq-cat', char_groupings=char_groupings, chars=chars)
-
-    def run(self):
-        pass

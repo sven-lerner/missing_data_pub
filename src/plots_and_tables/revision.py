@@ -1,19 +1,17 @@
 from unicodedata import name
-from python.plots_and_tables import plot_base
-from python import missing_data_utils
+from plots_and_tables import plot_base
+import missing_data_utils
 from abc import ABC, abstractmethod
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm.notebook import tqdm 
-from python import imputation_utils, imputation_model, imputation_model_simplified
+import imputation_utils, imputation_model_simplified
 from collections import defaultdict
 import numpy as np
 from itertools import chain, combinations
-from py_imports import *
-from python.plots_and_tables import revision_utils
-from python.models import FactorModel, PCAFactorModel, IpcaModelV2
+from plots_and_tables import revision_utils
+from models import FactorModel, IpcaModelV2
 import scipy as scp
-from python.models import FactorModel
+from models import FactorModel
 
 class RevisionPlotBase(plot_base.PaperPlot, ABC):
     section = 'revision'
@@ -44,7 +42,7 @@ class NormalizationPersistence(RevisionBase):
         normed_chars = np.copy(regular_chars)
         T, N, C = normed_chars.shape
 
-        for c in tqdm(range(C)):
+        for c in range(C):
             for t in range(T):
                 lower, upper = np.nanquantile(normed_chars[t,:,c], 0.05), np.nanquantile(normed_chars[t,:,c], 0.95)
                 if np.isnan(lower):
@@ -53,10 +51,7 @@ class NormalizationPersistence(RevisionBase):
                     upper = np.nanmax(normed_chars[t,:,c][~np.isinf(normed_chars[t,:,c])])
                 normed_chars[t,normed_chars[t,:,c] < lower,c] = lower
                 normed_chars[t,normed_chars[t,:,c] > upper,c] = upper
-                if np.isinf(lower):
-                    print(t)
-                if np.isinf(upper):
-                    print(t)
+
                 assert np.all(~np.isinf(normed_chars[t,:,c])), (lower, upper)
 
             mu, sigma = np.nanmean(normed_chars[:,:,c]), np.nanstd(normed_chars[:,:,c])
@@ -73,7 +68,7 @@ class NormalizationPersistence(RevisionBase):
             for char_panel, label in zip(char_panels, labels):
                 T, N, C = char_panel.shape
                 char_auto_corrs = []
-                for c in tqdm(range(C)):
+                for c in range(C):
                     auto_corrs = []
                     for n in range(N):
                         if np.sum(~np.isnan(char_panel[:,n,c])) >= 60:
@@ -105,7 +100,7 @@ class NonlinearIPCA(RevisionTableBase):
     sigfigs = 3
 
     def setup(self, percentile_rank_chars, return_panel, char_groupings, chars, rts, expansion_dim):
-        from python.models import FactorModel, PCAFactorModel, IpcaModelV2
+        from models import FactorModel, PCAFactorModel, IpcaModelV2
         return_lag = 6
 
         def ntile_basis_expansion(char_vect, n):
@@ -122,7 +117,7 @@ class NonlinearIPCA(RevisionTableBase):
         def get_ntile_basis_panel(chars, n):
             T, N, C = chars.shape
             ret_panel = np.zeros((T, N, C * n))
-            for t in tqdm(range(T)):
+            for t in range(T):
                 for c in range(C):
                     ret_panel[t,:,c*n:(c+1)*n] = ntile_basis_expansion(chars[t,:,c], n)
             return ret_panel
@@ -168,15 +163,14 @@ class NonlinearIPCA(RevisionTableBase):
 
 
 
-                from python.models.ipca_util import calculate_sharpe_ratio, calculate_efficient_portofolio
+                from models.ipca_util import calculate_sharpe_ratio, calculate_efficient_portofolio
 
                 fp_np_factors = np.copy(ipca_fo.in_factors)
                 imputed_np_factors = np.copy(ipca_imputed.in_factors)
                 fp_oos_mv_portfolio_returns = []
                 imputed_oos_mv_portfolio_returns = []
-            #         fp_weight = calculate_efficient_portofolio(fp_np_factors, rts[:NUM_MONTHS_TRAIN])
-            #         imputed_weight = calculate_efficient_portofolio(imputed_np_factors, rts[:NUM_MONTHS_TRAIN])
-                for t in tqdm(range(len(ipca_fo.out_factors))):
+
+                for t in range(len(ipca_fo.out_factors)):
                     
                     np_risk_free_rates = rts[t:NUM_MONTHS_TRAIN+t]
 
@@ -214,7 +208,6 @@ class NonlinearIPCA(RevisionTableBase):
         
         return_panel = return_panel - rts.reshape(-1, 1)
         rts = rts * 0 
-        print(return_panel.shape, rts.shape)
         
         imputed_chars = imputation_utils.load_imputation('local_bw_in_sample')
         imputed_chars[~np.isnan(percentile_rank_chars)] = percentile_rank_chars[~np.isnan(percentile_rank_chars)]
@@ -317,7 +310,7 @@ class TimeSeriesMoreLags(RevisionTableBase):
             )
                 
             return imputed_chars
-        from python import imputation_model_simplified
+        import imputation_model_simplified
         import importlib
         importlib.reload(imputation_model_simplified)
         results = []
@@ -357,10 +350,9 @@ class TimeSeriesMoreLags(RevisionTableBase):
                     reg=0.01,
                     time_varying_lambdas=False,
                     window_size=1, 
-                    n_iter=3,
+                    n_iter=1,
                     eval_data=None,
-                    allow_mean=False,
-                    use_alternate_gamma_estm=False)
+                    allow_mean=False)
 
                 xs_imputed_data = imputation_model_simplified.get_all_xs_vals(masked_lagged_chars, reg=0.01, 
                                          Lmbda=lmbda, time_varying_lmbda=False)
@@ -429,10 +421,9 @@ class ComparisonOfModelConfigs(RevisionTableBase):
                     reg=0.01,
                     time_varying_lambdas=False,
                     window_size=1, 
-                    n_iter=3,
+                    n_iter=1,
                     eval_data=None,
-                    allow_mean=False,
-                    use_alternate_gamma_estm=False)
+                    allow_mean=False)
 
             xs_imputation = imputation_model_simplified.get_all_xs_vals(char_data, reg=0.01, 
                                          Lmbda=lmbda, time_varying_lmbda=False)
@@ -524,7 +515,7 @@ class SparseFactors(RevisionBase):
     def setup(self, percentile_rank_chars, return_panel, char_groupings, chars,
         regular_chars, permnos, dates):
         
-        from python import imputation_model_simplified
+        import imputation_model_simplified
         gamma_ts, lmbda = imputation_model_simplified.impute_panel_xp_lp(
             char_panel=percentile_rank_chars[-10:], 
             return_panel=return_panel[-10:], min_chars=10, K=10, 
@@ -534,8 +525,7 @@ class SparseFactors(RevisionBase):
             window_size=1, 
             n_iter=1, 
             eval_data=None,
-            allow_mean=False,
-            use_alternate_gamma_estm=False)
+            allow_mean=False)
         
         t_mask = np.all(~np.isnan(gamma_ts[-1]), axis=1)
         
@@ -559,7 +549,6 @@ class SparseFactors(RevisionBase):
         for i in range(10):
             revision_utils.plot_factor(lmbda, i, chars, tag='full_factors')
             revision_utils.plot_factor(lmbda_tilde, i, chars, tag='sparse_factors')
-            print()
             
             
 class SparseFactorsTable(RevisionBase):
@@ -590,7 +579,7 @@ class SparseFactorsTable(RevisionBase):
                 fit_chars = imputation_utils.load_imputation(fit_maps[tag])
                 eval_chars = imputation_utils.load_imputation(eval_maps[tag])
         
-            from python import imputation_model_simplified
+            import imputation_model_simplified
             gamma_ts, lmbda = imputation_model_simplified.impute_panel_xp_lp(
                 char_panel=fit_chars, 
                 return_panel=return_panel, min_chars=10, K=10, 
@@ -600,8 +589,7 @@ class SparseFactorsTable(RevisionBase):
                 window_size=1, 
                 n_iter=1, 
                 eval_data=None,
-                allow_mean=False,
-                use_alternate_gamma_estm=False)
+                allow_mean=False)
 
             t_mask = np.all(~np.isnan(gamma_ts), axis=2)
 
@@ -621,10 +609,6 @@ class SparseFactorsTable(RevisionBase):
                                                group_masks=group_mask, maxiter=3, tol=1e-3,
                                               reg=100)
 
-    #         results = list(Parallel(n_jobs=4)(delayed(revision_utils.sparsify_lmbda)(
-    #             lmbda, [gamma_ts[t, t_mask[t]]], 
-    #             group_masks=group_mask, maxiter=3, tol=1e-3,
-    #             reg=100) for t in tqdm(range(t_start, gamma_ts.shape[0]))))
 
             new_gts = np.copy(gamma_ts[t_start:])
             new_lmbda = results[0]
@@ -716,14 +700,10 @@ class ReturnFactorGeneralizedCorr(RevisionTableBase):
                 test_mask=mask[val_end:],
                 rfts=np.array(rts[start+return_lag:]), missing_bounds=None, recalc_data=True, reg=0)
             CMP_factors = factor_model.get_factors()
-            print(CMP_factors.shape, np.cov(CMP_factors.T).shape)
             evs, evects = np.linalg.eigh(np.cov(CMP_factors))
             ordering = np.argsort(evs)[::-1]
-            for k in tqdm(Ks):
-
-
+            for k in Ks:
                 CMP_PCA_factors = evects[:,ordering[:k]]
-            #     CMP_PCA_factors = CMP_factors @ loadings
 
                 w_PCA = np.linalg.solve(np.cov(CMP_factors[:val_end].T), np.mean(CMP_factors[:val_end], axis=0))
                 ret_PCA = CMP_factors @ w_PCA
@@ -731,7 +711,7 @@ class ReturnFactorGeneralizedCorr(RevisionTableBase):
 
             return results
 
-        from python import imputation_model_simplified
+        import imputation_model_simplified
         gamma_ts, lmbda = imputation_model_simplified.impute_panel_xp_lp(
             char_panel=percentile_rank_chars, 
             return_panel= return_panel, min_chars=10, K=45, 
@@ -739,14 +719,13 @@ class ReturnFactorGeneralizedCorr(RevisionTableBase):
             reg=0.01,
             time_varying_lambdas=False,
             window_size=1, 
-            n_iter=3,
+            n_iter=1,
             eval_data=None,
-            allow_mean=False,
-            use_alternate_gamma_estm=False)
+            allow_mean=False)
 
 
         results = []
-        for k in tqdm(range(2, 46)):
+        for k in range(2, 46):
             k_results = visualize_gamma_corr(percentile_rank_chars, gamma_ts[:,:,:k], Ks=range(2, 46), 
                                                       returns=return_panel, lmbda=lmbda[:,:k], rts=rts)
             results.append(k_results)
@@ -777,7 +756,7 @@ class ReturnFactorSharpes(RevisionTableBase):
     def setup(self, percentile_rank_chars, return_panel, char_groupings, chars,
         regular_chars, permnos, dates, rts):
         return_lag = 6
-        from python import imputation_model_simplified
+        import imputation_model_simplified
         
         exess_returns = return_panel - np.array(rts).reshape([-1, 1])
         train_end=300
@@ -794,10 +773,9 @@ class ReturnFactorSharpes(RevisionTableBase):
             reg=0.01,
             time_varying_lambdas=False,
             window_size=1, 
-            n_iter=3,
+            n_iter=1,
             eval_data=None,
-            allow_mean=False,
-            use_alternate_gamma_estm=False)
+            allow_mean=False)
         
     
         imputed = np.concatenate([np.expand_dims(x @ lmbda.T, axis=0) for x in gamma_ts], axis=0)
@@ -830,7 +808,7 @@ class ReturnFactorSharpes(RevisionTableBase):
         cmp_evs, cmp_evects = cmp_evs[::-1], cmp_evects[:,::-1]
         
         sharpes = []
-        for k in tqdm(range(2, 46)):
+        for k in range(2, 46):
             CMP_k_factors = CMP_factors @ cmp_evects[:,:k]
             
             factor_model = FactorModel.FactorRegressionModel()
@@ -853,7 +831,6 @@ class ReturnFactorSharpes(RevisionTableBase):
             sigma, mu = np.cov(gamma_t_factor_returns[:val_end].T), np.mean(gamma_t_factor_returns[:val_end], axis=0)
 #             w_gamma = np.linalg.solve(sigma.T @ sigma + 1e-5 * np.eye(k), sigma.T @ mu)
             w_gamma = np.linalg.solve(sigma, mu)
-            print(w_gamma)
             ret_gamma = gamma_t_factor_returns @ w_gamma
             
             sigma, mu = np.cov(CMP_k_factors[:val_end,:k].T), np.mean(CMP_k_factors[:val_end], axis=0)
@@ -886,118 +863,7 @@ class ReturnFactorSharpes(RevisionTableBase):
         plt.show()
         
         
-class ComparisonWithAlternativeMethods(RevisionTableBase):
-    
-    description=''
-    name = 'ComparisonWithAlternativeMethods'
-    sigfigs=3
-    
-    def setup(self, percentile_rank_chars, return_panel, char_groupings, chars,
-        regular_chars, permnos, dates, rts, char_map):
-        
-        regr_chars = ['VAR', 'IdioVol', 'SPREAD', 'D2P', 'R2_1', 'ME']
-        self.metrics = []
-        
-        monthly_chars = [x for x in chars if char_map[x] == 'M']
-        print(monthly_chars)
-        monthly_char_mask = np.isin(chars, monthly_chars)
-        quarterly_char_mask = ~monthly_char_mask
 
-        eval_maps = {
-                'MAR': "MAR_eval_data",
-                'BLOCK': "prob_block_eval_data",
-                'logit': "logit_eval_data",
-            }
-        columns = []
-        
-        def get_r2(tgt, imputed, monthly_char_mask, quarterly_char_mask):
-            tgt = np.copy(tgt)
-            tgt[np.isnan(imputed)] = np.nan
-
-            overal_r2 = np.nanmean(
-                1 - np.nansum(np.square(tgt - imputed), axis=(1,0)) /
-                    np.nansum(np.square(tgt), axis=(1,0)), 
-                axis=0
-            )
-
-            monthly_r2 = np.nanmean(
-                1 - np.nansum(np.square(tgt[:,:,monthly_char_mask] - imputed[:,:,monthly_char_mask]), axis=(1,0)) /
-                    np.nansum(np.square(tgt[:,:,monthly_char_mask]), axis=(1,0)), 
-                axis=0
-            )
-
-            quarterly_r2 = np.nanmean(
-                1 - np.nansum(np.square(tgt[:,:,quarterly_char_mask] - imputed[:,:,quarterly_char_mask]), axis=(1,0)) /
-                    np.nansum(np.square(tgt[:,:,quarterly_char_mask]), axis=(1,0)), 
-                axis=0
-            )
-
-            return overal_r2, quarterly_r2, monthly_r2
-        
-        self.r2s = []
-        
-        for t1, t2 in tqdm([('IN SAMPLE', '_in_sample'),
-            ('MAR', '_out_of_sample_MAR'), ('BLOCK', '_out_of_sample_block'), ('logit', '_out_of_sample_logit')]):
-            tag_metrics = []
-            tag_r2s = []
-            
-            if t2 != '_in_sample':
-                eval_chars = imputation_utils.load_imputation(eval_maps[t1])
-            else:
-                eval_chars = percentile_rank_chars
-            
-            imp = imputation_utils.load_imputation("local_bw" + t2)
-            mask = np.isnan(imp)
-            eval_chars[mask] = np.nan
-            m = imputation_utils.get_imputation_metrics(imp, 
-                                                  eval_char_data=eval_chars, monthly_update_mask=None, 
-                                                  char_groupings=char_groupings, norm_func=None)   
-            tag_metrics.append([round(np.sqrt(np.nanmean(x)), 5) for x in m])
-            tag_r2s.append([round(x, 5) for x in get_r2(eval_chars, imp, monthly_char_mask, quarterly_char_mask)])
-            
-            imp = imputation_utils.load_imputation("local_xs" + t2)
-            m = imputation_utils.get_imputation_metrics(imp, 
-                                                  eval_char_data=eval_chars, monthly_update_mask=None, 
-                                                  char_groupings=char_groupings, norm_func=None)   
-            tag_metrics.append([round(np.sqrt(np.nanmean(x)), 5) for x in m])
-            tag_r2s.append([round(x, 5) for x in get_r2(eval_chars, imp, monthly_char_mask, quarterly_char_mask)])
-
-            imp = revision_utils.impute_chars_freyweb(chars, regr_chars=regr_chars, 
-                                                        missing_data_type=t1,
-                                                     percentile_rank_chars=percentile_rank_chars)
-            
-            m = imputation_utils.get_imputation_metrics(imp, 
-                                                  eval_char_data=eval_chars, monthly_update_mask=None, 
-                                                  char_groupings=char_groupings, norm_func=None)   
-            tag_metrics.append([round(np.sqrt(np.nanmean(x)), 5) for x in m])
-            tag_r2s.append([round(x, 5) for x in get_r2(eval_chars, imp, monthly_char_mask, quarterly_char_mask)])
-            
-            imp, _ = revision_utils.impute_andrew_chen(t1, min_chars=1, maxiter=10,
-                                                     percentile_rank_chars=percentile_rank_chars)
-            
-            m = imputation_utils.get_imputation_metrics(imp, 
-                                                  eval_char_data=eval_chars, monthly_update_mask=None, 
-                                                  char_groupings=char_groupings, norm_func=None,
-                                                       clip=False)   
-            tag_metrics.append([round(np.sqrt(np.nanmean(x)), 5) for x in m])
-            tag_r2s.append([round(x, 5) for x in get_r2(eval_chars, imp, monthly_char_mask, quarterly_char_mask)])
-            
-            self.metrics.append(tag_metrics)
-            self.r2s.append(tag_r2s)
-            columns += [x + '-' + t1 for x in ['aggregate', "quarterly", 'monthly']]
-            
-            
-            
-            
-            
-        labels = ['local B-XS', 'local XS', 'F\&W', 'EM']
-        self.data_df = pd.DataFrame(
-            data=[sum([x[i] for x in self.metrics], []) for i in range(4)], index=labels, columns=columns
-        )
-        
-        self.r2_data_df = pd.DataFrame(
-            data=[sum([x[i] for x in self.r2s], []) for i in range(4)], index=labels, columns=columns
-        )
         
 from joblib import Parallel, delayed
 class RegularizationOfBetaRegression(RevisionTableBase):

@@ -1,14 +1,10 @@
 from unicodedata import name
 from plots_and_tables import plot_base
-import missing_data_utils
-from abc import ABC, abstractmethod
+from abc import ABC
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm.notebook import tqdm 
 import imputation_utils
-from collections import defaultdict
 import numpy as np
-from itertools import chain, combinations
 from plots_and_tables import section_6_utils
 from models import FactorModel, IpcaModelV2
 
@@ -26,6 +22,99 @@ class SectionSixBase(SectionSixPlotBase, ABC):
     
     def run(self, loud=True):
         pass
+    
+class ConditionaMeanReturns:
+    
+    def run(self, percentile_rank_chars, chars, regular_chars, return_panel):
+        
+        port_tgt_chars = [
+            'A2ME', 
+         'AT', 
+         'ATO',
+         'B2M',
+         'C2A',
+            'CF2B',
+            'CF2P',
+            'CTO',
+            'D2A',
+            'DPI2A', 
+            'E2P', 
+            'FC2Y',
+            'INV', 
+            'LEV',
+            'NI',
+            'NOA',
+            'OA', 
+            'OL',
+               'OP', 
+            'PCM',
+            'PM',
+            'PROF',
+            'Q',
+            'RNA',
+            'ROA',
+            'ROE',
+            'S2P',
+            'SGA2S',
+        ]
+
+        
+        port_returns = [[] for _ in chars]
+        port_counts = [[] for _ in chars]
+        size_ind = np.argwhere(chars == 'ME')[0][0]
+        start = 45
+        prev_obs_mask = np.any(~np.isnan(percentile_rank_chars[:start]), axis=0)
+        for t in range(start, percentile_rank_chars.shape[0] - 6):
+            cut = np.nanquantile(regular_chars[t,:,size_ind], q=.95)
+            cut = np.nanmax(regular_chars[t,:,size_ind])
+            sizes = np.nan_to_num(regular_chars[t,:,size_ind])
+            sizes[sizes > cut] = cut
+            for i, c in enumerate(chars):
+                if c in port_tgt_chars:
+                    p1 = np.logical_and(~np.isnan(percentile_rank_chars[t,:,i]) , ~np.isnan(regular_chars[t,:,size_ind]))
+                    p1 = np.logical_and(p1, ~np.isnan(return_panel[t+6]))
+                    p1_count = np.sum(p1)
+                    p1 = p1 * sizes
+                    p1 = p1 / np.sum(p1)
+
+                    p2 = np.logical_and(np.isnan(percentile_rank_chars[t,:,i]), prev_obs_mask[:,i]) 
+                    p2 = np.logical_and(p2, ~np.isnan(return_panel[t+6]))
+                    p2 = np.logical_and(p2, ~np.isnan(regular_chars[t,:,size_ind]))
+                    p2_count = np.sum(p2)
+                    p2 = p2 * sizes
+                    p2 = p2 / np.sum(p2)
+
+                    p1_ret = p1 @ np.nan_to_num(return_panel[t+6])
+                    p2_ret = p2 @ np.nan_to_num(return_panel[t+6])
+
+                    port_returns[i].append([p1_ret, p2_ret])
+                    port_counts[i].append(p2_count)
+        #             if p1_count > 5 and p2_count > 10:
+        #                 port_returns[i].append([p1_ret, p2_ret])
+        #             else:
+        #                 port_returns[i].append([p1_ret, np.nan])
+                else:
+                    port_returns[i].append([p1_ret, np.nan])
+            prev_obs_mask = np.logical_or(prev_obs_mask, ~np.isnan(percentile_rank_chars[t]))
+        
+        mean_returns = np.mean(port_returns, axis=1)
+        mycolors = ['#152eff', '#e67300', '#0e374c', '#6d904f', '#8b8b8b', '#30a2da', '#e5ae38', '#fc4f30', 
+                    '#6d904f', '#8b8b8b', '#0e374c']
+        
+        fig = plt.figure(figsize=(15,10))
+        ordering = np.argsort(mean_returns[:,1])
+        _ = plt.plot(np.arange(len(port_tgt_chars)), 1200*mean_returns[:,0][ordering][:len(port_tgt_chars)], 
+                     label='observed',
+                    c=mycolors[2], marker='o')
+        _ = plt.plot(np.arange(len(port_tgt_chars)), 1200*mean_returns[:,1][ordering][:len(port_tgt_chars)], 
+                     label='missing, not at start',
+                    c=mycolors[1], marker='o')
+        _ = plt.legend()
+        _ = plt.xticks(np.arange(len(port_tgt_chars)), chars[ordering][:len(port_tgt_chars)], rotation=90, fontsize=15)
+        _ = plt.ylabel("Mean returns (% per an.)")
+        plt.savefig(f'../images-pdfs/section6/ls-missing-obs-ports.pdf', 
+                                    bbox_inches='tight')
+        plt.show()
         
 
 class UnivariateSort(SectionSixBase):
@@ -58,7 +147,7 @@ class UnivariateSort(SectionSixBase):
 
         base_chars = ["ME", "B2M", "INV", "CF2P", "NI", "SGA2S", "R12_2", "R60_13"]
         ff_chars = ["B2M", "ME", "OP", "INV"]
-        for i, c in enumerate(tqdm(ff_chars)):
+        for i, c in enumerate(ff_chars):
             char_ind = np.argwhere(chars == c)[0][0]
             observed_masks = []
             imputed_masks = []
@@ -93,7 +182,7 @@ class UnivariateBarDiffs(SectionSixBase):
         h_port_returns = []
         l_port_returns = []
         full_mask = np.all(~np.isnan(percentile_rank_chars), axis=2)
-        for i, c in enumerate(tqdm(chars)):
+        for i, c in enumerate(chars):
             char_ind = np.argwhere(chars == c)[0][0]
             char_mask = ~np.isnan(percentile_rank_chars[:,:,char_ind])
             specific_h_mask = np.logical_and(nyse_10buckets[:,:,char_ind,9], char_mask)
@@ -237,26 +326,6 @@ class PurePlayRegressionsMasked(SectionSixBase):
         val_end = int(len(exess_returns) / 2) + int(len(exess_returns) / 4)
         return_lag = 6
 
-
-        # factor_model = FactorModel.FactorRegressionModel()
-        # factor_model.include_intercept = False
-
-        # mask = np.logical_and(np.all(~np.isnan(global_bw[:-return_lag, :, :]), axis=2),
-        #                       ~np.isnan(return_panel[start+return_lag:]))
-
-        # factor_model.fit(exess_returns[start+1:train_end+start], global_bw[1:train_end, :, :], 
-        #                  mask[1:train_end], 
-        #                  return_panel[start+train_end+return_lag:val_end+return_lag+start], 
-        #                  global_bw[train_end:val_end, :, :], mask[train_end:val_end],
-        #                  return_panel[val_end+return_lag+start:], 
-        #                  global_bw[val_end:-return_lag, :, :], mask[val_end:],
-        #                  np.array(rts[1+start+return_lag:]), missing_bounds=None, recalc_data=True)
-
-
-        # factors.append(factor_model.get_factors())
-
-        # all_metrics.append(factor_model.eval_metrics(None, None, None, recalc_data=False))
-
         factor_model = FactorModel.FactorRegressionModel()
         factor_model.include_intercept = False
 
@@ -369,216 +438,6 @@ class PurePlayRegressionsMasked(SectionSixBase):
         plt.show()
         pass
     
-
-    
-    
-class PurePlayRegressionsMaskedNoReg(SectionSixBase):
-    description = ''
-    name = 'PurePlayRegressionsMaskedNoReg'
-
-    def setup(self, percentile_rank_chars, chars, return_panel, char_groupings,
-        regular_chars, dates, permnos, rts, char_map, monthly_updates):
-        char_mask = chars != "Q"
-        chars = chars[char_mask]
-        masked_lagged_chars = imputation_utils.load_imputation("logit_fit_data")
-        percentile_rank_chars = percentile_rank_chars
-        start_idx = 0
-        exess_returns = return_panel - np.array(rts).reshape([-1, 1])
-        
-                
-        
-        T = masked_lagged_chars.shape[0]
-        
-        gamma_ts, lmbda = imputation_model_simplified.impute_panel_xp_lp(
-                    char_panel=masked_lagged_chars, 
-                    return_panel= return_panel, min_chars=10, K=10, 
-                    num_months_train=T,
-                    reg=0.01,
-                    time_varying_lambdas=True,
-                    window_size=1, 
-                    n_iter=3,
-                    eval_data=None,
-                    allow_mean=False,
-                    use_alternate_gamma_estm=False)
-
-        local_bw = imputation_utils.impute_chars(gamma_ts, masked_lagged_chars, 
-                                             "last_val", None, char_groupings, num_months_train=T,
-                                                            eval_char_data=None,
-                                                               window_size=1)
-
-
-        local_xs = imputation_utils.impute_chars(gamma_ts, masked_lagged_chars, 
-                                                 "None", None, char_groupings, num_months_train=T,
-                                                                eval_char_data=None,
-                                                                   window_size=1,
-                                                lmbda=lmbda, tv_lmbdas=True)
-        
-        masked_lagged_chars = masked_lagged_chars[:,:,char_mask]
-        percentile_rank_chars = percentile_rank_chars[:,:,char_mask]
-        gt_nan_mask = np.isnan(percentile_rank_chars)
-        
-        global_xs_reg = local_xs[:,:,char_mask]
-        global_bw_reg = local_bw[:,:,char_mask]
-        
-        global_bw_reg[np.isnan(global_bw_reg)] = global_xs_reg[np.isnan(global_bw_reg)]
-        replace_mask = ~np.isnan(masked_lagged_chars)
-        global_bw_reg[replace_mask] = masked_lagged_chars[replace_mask]
-        global_xs_reg[replace_mask] = masked_lagged_chars[replace_mask]
-        global_xs_reg[gt_nan_mask] = np.nan
-        global_bw_reg[gt_nan_mask] = np.nan
-
-        xs_median = np.zeros_like(global_bw_reg)
-        xs_median[replace_mask] = masked_lagged_chars[replace_mask]
-        xs_median[gt_nan_mask] = np.nan
-
-        global_ts = imputation_utils.load_imputation("global_ts_out_of_sample_logit")[:,:,char_mask]
-        global_ts[replace_mask] = masked_lagged_chars[replace_mask]
-        to_impute_zero = np.logical_and(np.isnan(global_ts), ~np.isnan(xs_median))
-        global_ts[to_impute_zero] = xs_median[to_impute_zero]
-        global_ts[gt_nan_mask] = np.nan
-
-        factors = []
-        all_metrics = []
-
-        start = 0
-        train_end=300
-        val_end = 375
-        return_lag = 6
-
-        mask = np.logical_and(np.all(~np.isnan(percentile_rank_chars[:-return_lag, :, :]), axis=2),
-                            ~np.isnan(return_panel[return_lag:]))
-
-        factor_model = FactorModel.FactorRegressionModel()
-        factor_model.include_intercept = False
-        factor_model.fit(exess_returns[start+return_lag:train_end+return_lag], 
-                        percentile_rank_chars[start:train_end, :, :], 
-                        mask[start:train_end], 
-                        return_panel[train_end+return_lag:val_end+return_lag], 
-                        percentile_rank_chars[train_end:val_end, :, :], 
-                        mask[train_end:val_end],
-                        return_panel[val_end+return_lag:], 
-                        percentile_rank_chars[val_end:-return_lag, :, :], 
-                        mask[val_end:],
-                        np.array(rts[start+return_lag:]), missing_bounds=None, recalc_data=True, reg=0.1)
-
-
-        factors.append(factor_model.get_factors())
-
-        all_metrics.append(factor_model.eval_metrics(None, None, None, recalc_data=False))
-
-        train_end=300
-        start=0
-        val_end = 375
-        return_lag = 6
-
-
-        factor_model = FactorModel.FactorRegressionModel()
-        factor_model.include_intercept = False
-
-        mask = np.logical_and(np.all(~np.isnan(global_bw_reg[:-return_lag, :, :]), axis=2),
-                            ~np.isnan(return_panel[start+return_lag:]))
-
-        factor_model.fit(exess_returns[start+return_lag:train_end+start+return_lag], global_bw_reg[:train_end, :, :], 
-                        mask[:train_end], 
-                        return_panel[start+train_end+return_lag:val_end+return_lag+start], 
-                        global_bw_reg[train_end:val_end, :, :], mask[train_end:val_end],
-                        return_panel[val_end+return_lag+start:], 
-                        global_bw_reg[val_end:-return_lag, :, :], mask[val_end:],
-                        np.array(rts[start+return_lag:]), missing_bounds=None, recalc_data=True, reg=0.1)
-
-
-        factors.append(factor_model.get_factors())
-
-        all_metrics.append(factor_model.eval_metrics(None, None, None, recalc_data=False))
-
-
-        factor_model = FactorModel.FactorRegressionModel()
-        factor_model.include_intercept = False
-        factor_model.fit(exess_returns[start+return_lag:train_end+start+return_lag], xs_median[:train_end, :, :], 
-                        mask[:train_end], 
-                        return_panel[start+train_end+return_lag:val_end+return_lag+start], 
-                        xs_median[train_end:val_end, :, :], mask[train_end:val_end],
-                        return_panel[val_end+return_lag+start:], 
-                        xs_median[val_end:-return_lag, :, :], mask[val_end:],
-                        np.array(rts[start+return_lag:]), missing_bounds=None, recalc_data=True, reg=0.1)
-
-
-
-
-        factors.append(factor_model.get_factors())
-
-        all_metrics.append(factor_model.eval_metrics(None, None, None, recalc_data=False))
-        mask_start = 0
-
-        corrs = []
-        r_2 = []
-        mean_errors = []
-        def r_Squared(x,y):
-            return 1 - np.sum(np.square(x-y)) / np.sum(np.square(x - np.mean(x)))
-        
-        for j, name in enumerate(chars):
-            corrs.append([])
-            r_2.append([])
-            mean_errors.append([])
-            plt.figure(figsize=(10, 5))
-            fo = None
-            for i, label in enumerate(["Fully Observed", "B-XS",  "XS-Median"]):
-                
-                if label == "Fully Observed":
-                    fo = factors[i][:,j]
-                    plt.plot(np.cumsum(factors[i][:,j]), label=label)
-                else:
-                    corrs[-1].append(np.corrcoef(fo[mask_start:], factors[i][mask_start:,j])[0][1])
-                    r_2[-1].append(r_Squared(fo[mask_start:], factors[i][mask_start:,j]))
-                    mean_errors[-1].append((np.mean(factors[i][mask_start:,j] - fo[mask_start:]), 
-                                            np.sqrt(np.mean(np.square(fo[mask_start:]- factors[i][mask_start:,j])))))
-                    plt.plot(np.cumsum(factors[i][:,j]), label=label+f"  rmse: {mean_errors[-1][-1][-1]:.2g} corr: {corrs[-1][-1]:.2g}")
-                                    
-            plt.legend()
-            plt.title(name)
-            save_path = f'../images-pdfs/section6/masked-factor_regression-pure_play-noreg-{name}-bw-xsmed.pdf'
-            plt.savefig(save_path, bbox_inches='tight', format='pdf')
-            plt.show()
-        
-        plt.figure(figsize=(10, 7))
-        ordering = np.argsort([np.abs(x[0][0]) for x in mean_errors])
-        plt.plot(np.array([np.abs(x[0][0]) for x in mean_errors])[ordering], label='B-XS')
-        plt.plot(np.array([np.abs(x[1][0])for x in mean_errors])[ordering], label='XS-Median')
-        plt.xticks(np.arange(44), labels=chars[ordering], rotation=90)
-        plt.gca().tick_params(axis='both', which='major', labelsize=12)
-        plt.minorticks_off()
-        plt.legend(fontsize=12)
-        plt.title("Mean Error")
-        save_path = f'../images-pdfs/section6/masked-factor_regression-pure_play-noreg-bw-xsmed-mean-abs-error.pdf'
-        plt.savefig(save_path, bbox_inches='tight', format='pdf')
-        plt.show()
-        plt.figure(figsize=(10, 7))
-        ordering = np.argsort([np.abs(x[0][1]) for x in mean_errors])
-        plt.plot(np.array([np.abs(x[0][1]) for x in mean_errors])[ordering], label='B-XS')
-        plt.plot(np.array([np.abs(x[1][1]) for x in mean_errors])[ordering], label='XS-Median')
-        plt.xticks(np.arange(44), labels=chars[ordering], rotation=90)
-        plt.gca().tick_params(axis='both', which='major', labelsize=12)
-        plt.minorticks_off()
-        plt.legend(fontsize=12)
-        plt.title("RMSE")
-        save_path = f'../images-pdfs/section6/masked-factor_regression-pure_play-noreg-bw-xsmed-rmse.pdf'
-        plt.savefig(save_path, bbox_inches='tight', format='pdf')
-        plt.show()
-        plt.figure(figsize=(10, 7))
-        ordering = np.argsort([x[0] for x in r_2])
-        plt.plot(np.array([x[0] for x in r_2])[ordering], label='B-XS')
-        plt.plot(np.array([x[1] for x in r_2])[ordering], label='XS-Median')
-        plt.xticks(np.arange(44), labels=chars[ordering], rotation=90)
-        plt.minorticks_off()
-        plt.gca().set_tick_params(axis='both', which='major', labelsize=12)
-        plt.legend(fontsize=12)
-        plt.title("R2")
-        save_path = f'../images-pdfs/section6/masked-factor_regression-pure_play-noreg-bw-xsmed-r2.pdf'
-        plt.savefig(save_path, bbox_inches='tight', format='pdf')
-        plt.show()
-        pass    
-
-    
 class IPCASharpeDiff(SectionSixTableBase):
     description = ''
     name = 'IPCASharpeDiff'
@@ -620,7 +479,7 @@ class IPCASharpeDiff(SectionSixTableBase):
         imputed_np_factors = np.copy(ipca_imputed.in_factors)
         fp_oos_mv_portfolio_returns = []
         imputed_oos_mv_portfolio_returns = []
-        for t in tqdm(range(len(ipca_fo.out_factors))):
+        for t in range(len(ipca_fo.out_factors)):
             np_risk_free_rates = rts[t:NUM_MONTHS_TRAIN+t]
 
             weights = ipca_util.calculate_efficient_portofolio(fp_np_factors[:,t:], np_risk_free_rates.squeeze())
@@ -698,6 +557,3 @@ class IPCASharpeDiff(SectionSixTableBase):
         plt.savefig(f'../images-pdfs/section6/ipca_sharpes_outof_sample.pdf'.replace(' ', ''), 
                             bbox_inches='tight')
         plt.show()
-    
-    
-    

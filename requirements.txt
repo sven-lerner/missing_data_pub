@@ -14,3 +14,4 @@ numba
 seaborn
 statsmodels
 pyarrow
+shutup

@@ -1,9 +1,5 @@
 import numpy as np
-import scipy as scp
-from tqdm.notebook import tqdm
-import statsmodels.api as sm
 from sklearn import metrics
-import imputation_model_simplified
 
 char_groupings  = [('A2ME', "Q"),
                    ('AC', 'Q'),
@@ -320,7 +316,7 @@ def generate_logit_masked_data(start_model, middle_model, end_model, percentile_
     
     
     
-    for t in tqdm(range(start_idx, percentile_rank_chars.shape[0])):
+    for t in range(start_idx, percentile_rank_chars.shape[0]):
         found_enough = False
         
         total_t = np.sum(~np.isnan(percentile_rank_chars[t, :, regr_chars]))
@@ -428,7 +424,7 @@ def generate_logit_masked_data(start_model, middle_model, end_model, percentile_
     masked_lagged_chars = np.copy(percentile_rank_chars)
     only_missing_chars = np.copy(percentile_rank_chars)
     only_missing_chars[:,:,:] = np.nan
-    for c in tqdm(range(45)):
+    for c in range(45):
         if char_map[chars[c]] != 'M':
             for t in range(start_idx,masked_entries.shape[0]):
                 missing = masked_entries[t,:,c]
