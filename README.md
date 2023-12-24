@@ -16,7 +16,7 @@ Note, there are two differences between the data-set we have provided and the da
 
 4. run the imputations `cd src & python run_data_imputations.py`
 
-5. run the desired notebook for the particular results in question, ensure to run the first cell of the notebook to import the required modules and load the required data
+5. run the desired notebook for the particular results in question, ensure to run the first cell of the notebook to import the required modules and load the required data. to start the notebook server run `cd src & jupyter notebook`
 
 
 ## Paper Results and Their Locations
