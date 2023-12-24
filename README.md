@@ -20,6 +20,15 @@ Note, there are two differences between the data-set we have provided and the da
 
 
 ## Paper Results and Their Locations
+Each of the paper results can be found in the notebook corresponding to it's section in the paper. 
+- src/appendix.ipynb
+- src/section2.ipynb
+- src/section3.ipynb
+- src/section4.ipynb
+- src/section5.ipynb
+- src/section6.ipynb
+
+Within each notebook, the first cell corresponds to data-loading and imports, and then each section corresponds to a table or figure from the text. These are clearly labeled along with a description of what is being done. Running the cell corresponding to a result will produce and display the table or figure for the result as well as writing either a pdf of the plot for figures or a tex file of the table for tables to the `images-pdfs` directory. Additionally, below we have listed (1) the notebook containing each result in the paper (2) the file and line number of the code to generate that result in the repository and (3) the location of files which are generated for that plot.
 
 Main Text
 1. Figure 1: Missing Values over Time
