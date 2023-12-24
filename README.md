@@ -8,18 +8,30 @@ Note, there are two differences between the data-set we have provided and the da
 
 ## Running the Code
 
-1. install the required packages `pip -install -r requirements.txt`
+#### NOTE all of the commands below expect that the user is running them from the base directory of the repository
 
-2. create the necessary directions `setup_directories.sh`
+1. install the required packages `$ pip install -r requirements.txt`
 
-3. generate the masked data `cd src & python generate_masked_data.py`
+2. create the necessary directions `$ ./setup_directories.sh`
 
-4. run the imputations `cd src & python run_data_imputations.py`
+3. generate the masked data `$ cd src & python generate_masked_data.py`
 
-5. run the desired notebook for the particular results in question, ensure to run the first cell of the notebook to import the required modules and load the required data
+4. run the imputations `$ cd src & python run_data_imputations.py`
 
+5. run the desired notebook for the particular results in question, ensure to run the first cell of the notebook to import the required modules and load the required data. to start the notebook server run `$ cd src & jupyter notebook`
+
+Some of the results take quite some time to run (for example the simulations). We have indicated in the notebook when you should expect results to run for a long time.
 
 ## Paper Results and Their Locations
+Each of the paper results can be found in the notebook corresponding to it's section in the paper. 
+- src/appendix.ipynb
+- src/section2.ipynb
+- src/section3.ipynb
+- src/section4.ipynb
+- src/section5.ipynb
+- src/section6.ipynb
+
+Within each notebook, the first cell corresponds to data-loading and imports, and then each section corresponds to a table or figure from the text. These are clearly labeled along with a description of what is being done. Running the cell corresponding to a result will produce and display the table or figure for the result as well as writing either a pdf of the plot for figures or a tex file of the table for tables to the `images-pdfs` directory. Additionally, below we have listed (1) the notebook containing each result in the paper (2) the file and line number of the code to generate that result in the repository and (3) the location of files which are generated for that plot.
 
 Main Text
 1. Figure 1: Missing Values over Time
