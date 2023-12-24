@@ -8,15 +8,17 @@ Note, there are two differences between the data-set we have provided and the da
 
 ## Running the Code
 
-1. install the required packages `pip -install -r requirements.txt`
+#### NOTE all of the commands below expect that the user is running them from the base directory of the repository
 
-2. create the necessary directions `setup_directories.sh`
+1. install the required packages `$ pip install -r requirements.txt`
 
-3. generate the masked data `cd src & python generate_masked_data.py`
+2. create the necessary directions `$ ./setup_directories.sh`
 
-4. run the imputations `cd src & python run_data_imputations.py`
+3. generate the masked data `$ cd src & python generate_masked_data.py`
 
-5. run the desired notebook for the particular results in question, ensure to run the first cell of the notebook to import the required modules and load the required data. to start the notebook server run `cd src & jupyter notebook`
+4. run the imputations `$ cd src & python run_data_imputations.py`
+
+5. run the desired notebook for the particular results in question, ensure to run the first cell of the notebook to import the required modules and load the required data. to start the notebook server run `$ cd src & jupyter notebook`
 
 Some of the results take quite some time to run (for example the simulations). We have indicated in the notebook when you should expect results to run for a long time.
 
