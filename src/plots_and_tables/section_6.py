@@ -420,6 +420,7 @@ class PurePlayRegressionsMasked(SectionSixBase):
         plt.title('Mean Absolute Error')
         plt.savefig(save_path, bbox_inches='tight', format='pdf')
         plt.show()
+        
         plt.figure(figsize=(10, 4))
         ordering = np.argsort([np.abs(x[0][1]) for x in mean_errors])
         plt.plot(np.array([np.abs(x[0][1]) for x in mean_errors])[ordering], label='B-XS')
@@ -428,12 +429,12 @@ class PurePlayRegressionsMasked(SectionSixBase):
         plt.minorticks_off()
         plt.gca().tick_params(axis='both', which='major', labelsize=tick_fontsize)
         plt.legend(framealpha=0.5, fontsize=legend_fontsize)
-
         plt.margins(x=xmargin)
         save_path = f'../images-pdfs/section6/masked-factor_regression-pure_play-bw-xsmed-rmse.pdf'
         plt.title('Root Mean Squared Error')
         plt.savefig(save_path, bbox_inches='tight', format='pdf')
         plt.show()
+        
         plt.figure(figsize=(10, 4))
         ordering = np.argsort([x[0] for x in r_2])
         plt.plot(np.array([x[0] for x in r_2])[ordering], label='B-XS')
@@ -442,10 +443,24 @@ class PurePlayRegressionsMasked(SectionSixBase):
         plt.minorticks_off()
         plt.gca().tick_params(axis='both', which='major', labelsize=tick_fontsize)
         plt.legend(framealpha=0.5, fontsize=legend_fontsize)
-
         plt.margins(x=xmargin)
         save_path = f'../images-pdfs/section6/masked-factor_regression-pure_play-bw-xsmed-r2.pdf'
         plt.title('R2')
+        plt.savefig(save_path, bbox_inches='tight', format='pdf')
+        plt.show()
+
+        
+        plt.figure(figsize=(10, 4))
+        ordering = np.argsort([x[0] for x in corrs])
+        plt.plot(np.array([x[0] for x in r_2])[ordering], label='B-XS')
+        plt.plot(np.array([x[1] for x in r_2])[ordering], label='XS-Median')
+        plt.xticks(np.arange(44), labels=chars[ordering], rotation=90)
+        plt.minorticks_off()
+        plt.gca().tick_params(axis='both', which='major', labelsize=tick_fontsize)
+        plt.legend(framealpha=0.5, fontsize=legend_fontsize)
+        plt.margins(x=xmargin)
+        save_path = f'../images-pdfs/section6/masked-factor_regression-pure_play-bw-xsmed-corr.pdf'
+        plt.title('corr')
         plt.savefig(save_path, bbox_inches='tight', format='pdf')
         plt.show()
         pass
