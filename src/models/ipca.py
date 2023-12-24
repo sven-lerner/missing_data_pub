@@ -1,3 +1,10 @@
+'''
+NOTE this code is taken directly from https://github.com/bkelly-lab/ipca
+And implements the method described in:
+    Kelly, Pruitt, Su (2017). "Instrumented Principal Components Analysis" SSRN
+'''
+
+
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.model_selection import GroupKFold
 from sklearn.linear_model import ElasticNet
