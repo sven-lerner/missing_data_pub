@@ -152,8 +152,6 @@ def impute_xs_simplified(data, use_cond_exp, niter=1, use_cond_first_time=False,
             recon = np.concatenate([np.expand_dims(x @ l.T, axis=0) for x,l in zip(gamma_ts, lmbdas)], axis=0)
             results.append(np.nanmean(np.square(recon[:,mask] - data[:,mask])))
         nfactors = kvals[np.argmin(results)]
-        print(f"chose {nfactors} through cross-validation")
-        print("results were ", results)
         
     gamma_ts, lmbdas = imputation_model_simplified.impute_panel_xp_lp(
                 char_panel=data, 

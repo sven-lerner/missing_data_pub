@@ -66,7 +66,7 @@ class ExampleImputations(SectionFivePlotBase):
         mask_permnos = tickers_to_permnos['Permno'].to_numpy()
         permno_mask = np.isin(permnos, mask_permnos)
 
-        self.tgt_chars = ["AT", "ME", "Q", 'VAR']
+        self.tgt_chars = ["AT", "Q", 'VAR']
         self.char_mask = np.isin(chars, self.tgt_chars)
         self.one_yr_masked_data = np.copy(percentile_rank_chars)
         self.two_yr_masked_data = np.copy(percentile_rank_chars)
@@ -161,36 +161,7 @@ class ExampleImputations(SectionFivePlotBase):
                     plt.title(f"example imputation for {char} from {company_ticker} subset 1")
                     plt.savefig(save_path + f'{company_ticker}-{data_plot_name}-{char}.pdf', bbox_inches='tight')
                     plt.show()
-                    fig = plt.figure(figsize=(10,5))
-                    ax = plt.gca()
-                    for start_mask, end_mask in self.mask_windows_1yr:
-                        if np.any(self.date_vals == start_mask):
-                            start_date_ind = np.argwhere(self.date_vals == start_mask)[0][0]
-                            end_date_ind = np.argwhere(self.date_vals == end_mask)[0][0]
-                            if start_date_ind >= start:
-                                rectangle = patches.Rectangle((self.date_vals[start_date_ind], -1), 
-                                                              self.date_vals[end_date_ind] - self.date_vals[start_date_ind], 
-                                                              2, facecolor="grey", alpha=0.25)
-                                ax.add_patch(rectangle)
-
-                            elif end_date_ind >= start:
-                                rectangle = patches.Rectangle((self.date_vals[start], -1), 
-                                                              self.date_vals[end_date_ind] - self.date_vals[start], 
-                                                              2, facecolor="grey", alpha=0.25)
-                                ax.add_patch(rectangle)
-
-                    plt.plot(self.date_vals[start:end], 
-                             self.percentile_rank_chars[start:end,tgt_permno_mask,char_ind], label='masked')
-                    plt.plot(self.date_vals[start:end], masked_data[start:end,tgt_permno_mask,char_ind], label='observed')
-                    plt.plot(self.date_vals[start:end], global_bw[start:end,tgt_permno_mask,char_ind], label='imputed-B-XS')
-                    plt.plot(self.date_vals[start:end], global_xs[start:end,tgt_permno_mask,char_ind], label='imputed-XS')
-#                     plt.title(char)
-                    plt.legend(fontsize=20, loc="lower center", bbox_to_anchor=(0.5, -0.5), ncol=3)
-                    plt.gcf().subplots_adjust(bottom=0.25)
-                    plt.ylim(lb, ub)
-                    plt.title(f"example imputation for {char} from {company_ticker} subset 2")
-                    plt.savefig(save_path + f'{company_ticker}-{data_plot_name}-{char}-xs_only.pdf', bbox_inches='tight')
-                    plt.show()
+                    
 
 char_groupings  = [('A2ME', "Q"),
 ('AC', 'Q'),
@@ -591,7 +562,9 @@ class ImputationErrorPlots(SectionFiveTableBase):
     sigfigs = 2
     norm_func = np.sqrt
     
-    def setup(self, percentile_rank_chars, chars, monthly_updates, dates):
+    def setup(self, percentile_rank_chars, chars, monthly_updates, dates, plot_over_time=False, table_1=True):
+        self.plot_over_time = plot_over_time
+        self.table_1 = table_1
 
         data = []
         columns = []
@@ -673,15 +646,21 @@ class ImputationErrorPlots(SectionFiveTableBase):
             table_1_metrics = list(itertools.compress(metrics, np.isin(plot_names, table_1_plotnames)))
             table_2_metrics = list(itertools.compress(metrics, np.isin(plot_names, table_2_plotnames)))
 
-            imputation_utils.plot_metrics_by_mean_vol(mean_vols, table_1_metrics, table_1_plotnames, chars=chars, 
-                                                      save_name='table_1' + tag)
-            imputation_utils.plot_metrics_by_mean_vol(mean_vols, table_2_metrics, table_2_plotnames, chars=chars,
-                                                      save_name='table_2' + tag)
-            
-            imputation_utils.plot_metrics_over_time(table_1_metrics, table_1_plotnames, date_vals, 
-                                                    save_name=f'{tag}-table_1_reg', nans_ok='logit' in tag)
-            imputation_utils.plot_metrics_over_time(table_2_metrics, table_2_plotnames, date_vals,
-                                        save_name=f'{tag}-table_2_reg', nans_ok='logit' in tag)
+            if self.plot_over_time:
+                if self.table_1:
+                    imputation_utils.plot_metrics_over_time(table_1_metrics, table_1_plotnames, date_vals, 
+                                                            save_name=f'{tag}-table_1_reg', nans_ok='logit' in tag)
+                else:
+                    imputation_utils.plot_metrics_over_time(table_2_metrics, table_2_plotnames, date_vals,
+                                                save_name=f'{tag}-table_2_reg', nans_ok='logit' in tag)
+            else:
+                if self.table_1:
+                    imputation_utils.plot_metrics_by_mean_vol(mean_vols, table_1_metrics, table_1_plotnames, chars=chars, 
+                                                              save_name='table_1' + tag)
+                else:
+                    imputation_utils.plot_metrics_by_mean_vol(mean_vols, table_2_metrics, table_2_plotnames, chars=chars,
+                                                              save_name='table_2' + tag)
+                
         [run_tag(tag) for tag in 
                                ['_in_sample', '_out_of_sample_MAR', '_out_of_sample_block', '_out_of_sample_logit']]
             
@@ -1053,7 +1032,7 @@ class ComparisonWithAlternativeMethods(SectionFiveTableBase):
     sigfigs=3
     
     def setup(self, percentile_rank_chars, return_panel, char_groupings, chars,
-        regular_chars, permnos, dates, rts, char_map):
+        regular_chars, permnos, dates, rts):
         
         regr_chars = ['VAR', 'IdioVol', 'SPREAD', 'D2P', 'R2_1', 'ME']
         self.metrics = []
@@ -1149,7 +1128,7 @@ class ComparisonWithAlternativeMethods(SectionFiveTableBase):
             
             
             
-        labels = ['local B-XS', 'local XS', 'F\&W', 'EM']
+        labels = ['local B-XS', 'local XS', 'XS reg. fully obs.', 'EM']
         self.data_df = pd.DataFrame(
             data=[sum([x[i] for x in self.metrics], []) for i in range(4)], index=labels, columns=columns
         )

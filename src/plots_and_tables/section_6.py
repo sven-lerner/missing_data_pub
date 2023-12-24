@@ -89,10 +89,6 @@ class ConditionaMeanReturns:
 
                     port_returns[i].append([p1_ret, p2_ret])
                     port_counts[i].append(p2_count)
-        #             if p1_count > 5 and p2_count > 10:
-        #                 port_returns[i].append([p1_ret, p2_ret])
-        #             else:
-        #                 port_returns[i].append([p1_ret, np.nan])
                 else:
                     port_returns[i].append([p1_ret, np.nan])
             prev_obs_mask = np.logical_or(prev_obs_mask, ~np.isnan(percentile_rank_chars[t]))
@@ -380,6 +376,7 @@ class PurePlayRegressionsMasked(SectionSixBase):
             return 1 - np.sum(np.square(x-y)) / np.sum(np.square(x - np.mean(x)))
         error_maps = {}
         for j, name in enumerate(chars):
+            
             corrs.append([])
             r_2.append([])
             mean_errors.append([])
@@ -389,20 +386,22 @@ class PurePlayRegressionsMasked(SectionSixBase):
                 
                 if label == "Fully Observed":
                     fo = factors[i][:,j]
-                    plt.plot(np.cumsum(factors[i][:,j]), label=label)
+                    if name in ['B2M', 'S2P', 'ME', 'INV']:
+                        plt.plot(np.cumsum(factors[i][:,j]), label=label)
                 else:
                     corrs[-1].append(np.corrcoef(fo[mask_start:], factors[i][mask_start:,j])[0][1])
                     r_2[-1].append(r_Squared(fo[mask_start:], factors[i][mask_start:,j]))
                     mean_errors[-1].append((np.mean(factors[i][mask_start:,j] - fo[mask_start:]), 
                                             np.sqrt(np.mean(np.square(fo[mask_start:]- factors[i][mask_start:,j])))))
-                    plt.plot(np.cumsum(factors[i][:,j]), label=label)
+                    if name in ['B2M', 'S2P', 'ME', 'INV']:
+                        plt.plot(np.cumsum(factors[i][:,j]), label=label)
                     error_maps[(name, label)] =  f"rp-error: {mean_errors[-1][-1][-1]:.2g} corr: {corrs[-1][-1]:.2g}"
-                                    
-            plt.legend(framealpha=0.5)
-            plt.title(name)
-            save_path = f'../images-pdfs/section6/masked-factor_regression-pure_play-{name}-bw-xsmed.pdf'
-            plt.savefig(save_path, bbox_inches='tight', format='pdf')
-            plt.show()
+            if name in ['B2M', 'S2P', 'ME', 'INV']:    
+                plt.legend(framealpha=0.5)
+                plt.title(name)
+                save_path = f'../images-pdfs/section6/masked-factor_regression-pure_play-{name}-bw-xsmed.pdf'
+                plt.savefig(save_path, bbox_inches='tight', format='pdf')
+                plt.show()
         
         xmargin = 0.025
         tick_fontsize = 14
@@ -418,6 +417,7 @@ class PurePlayRegressionsMasked(SectionSixBase):
 
         plt.margins(x=xmargin)
         save_path = f'../images-pdfs/section6/masked-factor_regression-pure_play-bw-xsmed-mean-abs-error.pdf'
+        plt.title('Mean Absolute Error')
         plt.savefig(save_path, bbox_inches='tight', format='pdf')
         plt.show()
         plt.figure(figsize=(10, 4))
@@ -431,6 +431,7 @@ class PurePlayRegressionsMasked(SectionSixBase):
 
         plt.margins(x=xmargin)
         save_path = f'../images-pdfs/section6/masked-factor_regression-pure_play-bw-xsmed-rmse.pdf'
+        plt.title('Root Mean Squared Error')
         plt.savefig(save_path, bbox_inches='tight', format='pdf')
         plt.show()
         plt.figure(figsize=(10, 4))
@@ -444,6 +445,7 @@ class PurePlayRegressionsMasked(SectionSixBase):
 
         plt.margins(x=xmargin)
         save_path = f'../images-pdfs/section6/masked-factor_regression-pure_play-bw-xsmed-r2.pdf'
+        plt.title('R2')
         plt.savefig(save_path, bbox_inches='tight', format='pdf')
         plt.show()
         pass
