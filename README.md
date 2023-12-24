@@ -18,6 +18,7 @@ Note, there are two differences between the data-set we have provided and the da
 
 5. run the desired notebook for the particular results in question, ensure to run the first cell of the notebook to import the required modules and load the required data. to start the notebook server run `cd src & jupyter notebook`
 
+Some of the results take quite some time to run (for example the simulations). We have indicated in the notebook when you should expect results to run for a long time.
 
 ## Paper Results and Their Locations
 Each of the paper results can be found in the notebook corresponding to it's section in the paper. 
