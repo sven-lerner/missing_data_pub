@@ -62,6 +62,10 @@ def get_pooled_x_y_from_panel(char_panel,
                               include_missing_gap=False,
                               missing_gaps=None,
                               get_y=True):
+
+    '''
+    utility method to get a flattened vector of features from the 3d tensor of the data-set
+    '''
     Y = []
     X = []
     regr_chars = np.logical_and(~exclude_chars, ~fit_chars)
@@ -121,6 +125,9 @@ def get_pooled_x_y_from_panel(char_panel,
 
 def get_input_for_start_logit_model(percentile_rank_chars, chars, tgt_char_mask, start_idx, end_idx,
                                     regr_chars, exl_char_mask):
+    '''
+    utility method to get data features for the logit model predicting whether data is observed or not at the start of the sample
+    '''
     filter_too_long_gaps = True
     char_present_filter = np.all(~np.isnan(percentile_rank_chars[:,:,tgt_char_mask]), axis=2)
     input_filter = np.zeros_like(percentile_rank_chars, dtype=bool)
@@ -165,6 +172,9 @@ def get_input_for_start_logit_model(percentile_rank_chars, chars, tgt_char_mask,
 
 def get_input_for_middle_logit_model(percentile_rank_chars, chars, tgt_char_mask, start_idx, end_idx, 
                                      regr_chars, exl_char_mask, monthly_updates):
+    '''
+    utility method to get data features for the logit model predicting whether data is observed or not in the middle of the sample
+    '''
     char_present_filter = np.all(~np.isnan(percentile_rank_chars[:,:,tgt_char_mask]), axis=2)
     input_filter = np.zeros_like(percentile_rank_chars, dtype=bool)
     input_filter[:,:,regr_chars] = 1
@@ -209,6 +219,9 @@ def get_input_for_middle_logit_model(percentile_rank_chars, chars, tgt_char_mask
 
 def get_input_for_end_logit_model(percentile_rank_chars, chars, tgt_char_mask, start_idx, end_idx,
                                   regr_chars, exl_char_mask):
+    '''
+    utility method to get data features for the logit model predicting whether data is observed or not at the end of the sample
+    '''
     input_filter = np.zeros_like(percentile_rank_chars, dtype=bool)
     char_present_filter = np.all(~np.isnan(percentile_rank_chars[:,:,tgt_char_mask]), axis=2)
     input_filter[:,:,regr_chars] = 1
@@ -241,6 +254,11 @@ from sklearn import linear_model as lm
 
 
 def create_logit_model(prediction_type, percentile_rank_chars, chars, monthly_updates, model_type='logit'):
+    '''
+    fit a logit model to predict whether data is observed or not, depending on when in the lifecyle of a company we want to fit
+    [START MIDDLE or END]
+    '''
+    
     tgt_chars = ['ME', 'R2_1', 'D2P', 'IdioVol', 'TURN', 'SPREAD', 'VAR']
     exl_chars = [ 'RVAR']
     regr_chars = np.logical_and(~np.isin(chars, tgt_chars),
@@ -291,6 +309,10 @@ def create_logit_model(prediction_type, percentile_rank_chars, chars, monthly_up
 
 def generate_logit_masked_data(start_model, middle_model, end_model, percentile_rank_chars, chars,
                               monthly_mask_tgt_perc, monthly_updates, multiplier=1):
+    '''
+    utility method to generate logit masked data as describerd in the paper
+    First we fit the logit models to predict the missing pattern, then we use the logit models to mask the data-set
+    '''
     tgt_chars = ['ME', 'R2_1', 'D2P', 'IdioVol', 'TURN', 'SPREAD', 'VAR']
     exl_chars = [ 'RVAR']
     regr_chars = np.logical_and(~np.isin(chars, tgt_chars),

@@ -53,16 +53,17 @@ char_map = {x[0]:x[1] for x in char_groupings}
 
 
 def get_random_masks(present_chars, p):
-    flipped = np.random.binomial(1, p, size=present_chars.shape) == 1
-    flipped = np.logical_and(~np.isnan(present_chars), flipped)
-    return flipped
-
-def get_random_masks_propogate(present_chars, p):
+    '''
+    get a fully random mask over observed characteristics
+    '''
     flipped = np.random.binomial(1, p, size=present_chars.shape) == 1
     flipped = np.logical_and(~np.isnan(present_chars), flipped)
     return flipped
 
 def generate_MAR_missing_data(percentile_rank_chars, return_panel, chars, monthly_updates, dates):
+    '''
+    generate a MAR masked data-set
+    '''
     np.random.seed(0)
     update_chars = np.copy(percentile_rank_chars)
     for i, c in enumerate(chars):
@@ -102,7 +103,9 @@ def generate_MAR_missing_data(percentile_rank_chars, return_panel, chars, monthl
     
 def get_block_mask_prob_weighted(percentile_rank_chars, return_panel, chars, monthly_updates, dates, 
                                  tgt_total=0.1, tgt_start=0.4):
-    
+    '''
+    generate a block masked data-set, weighted to have the correct percentage occur at the start vs in the middle
+    '''
     np.random.seed(0)
     update_chars = np.copy(percentile_rank_chars)
     for i, c in enumerate(chars):
@@ -157,6 +160,9 @@ def get_block_mask_prob_weighted(percentile_rank_chars, return_panel, chars, mon
     
     
 def generate_LOGIT_missing_data(percentile_rank_chars, return_panel, chars, monthly_updates, dates):
+    '''
+    generate a masked data-set using the logit model for masking
+    '''
     np.random.seed(0)
     start_model_l = logit_models_and_masking.create_logit_model('START', np.copy(percentile_rank_chars), chars,
                                                           monthly_updates, model_type='logit')

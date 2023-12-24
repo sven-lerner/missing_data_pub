@@ -18,6 +18,9 @@ line_styles = [
 
 from collections import defaultdict
 def get_nyse_permnos_mask(dates_ap, permnos):
+    '''
+    get a boolean mask for the permno's of companies which are listed on the NYSE at a certain point in time
+    '''
     permnos_nyse_data = pd.io.parsers.read_csv('nyse_permnos.csv')
     permnos_nyse_data[['permno', 'date']].to_numpy()
     permnos_to_ind = {}
@@ -39,6 +42,9 @@ def get_nyse_permnos_mask(dates_ap, permnos):
     return permno_mask
 
 def get_deciles_nyse_cutoffs(permno_mask, size_chars):
+    '''
+    get the cutoffs for the size deciles over time based only on companies listed on NYSE
+    '''
     T, N = size_chars.shape
     decile_data = np.zeros((T, N, 10))
     to_decide_deciles = np.logical_and(~np.isnan(size_chars), permno_mask)
@@ -58,6 +64,9 @@ def get_deciles_nyse_cutoffs(permno_mask, size_chars):
 
 
 def plot_metrics_over_time(metrics, names, dates, save_name=None, extra_line=None, nans_ok=False):
+    '''
+    utility method to plot the imputation metrics over time
+    '''
     save_base = '../images-pdfs/section5/metrics_over_time-'
     
 
@@ -93,12 +102,17 @@ def plot_metrics_over_time(metrics, names, dates, save_name=None, extra_line=Non
               ncol=4, framealpha=1)
         
         if save_name is not None:
+            plt.title(f'RMSE over time for {save_name}')
             fig.savefig(save_base + save_name + f'-{plot_name}.pdf', bbox_inches='tight')
+            
         plt.show()
         
         
 def plot_metrics_by_mean_vol(mean_vols, input_metrics, names, chars, save_name=None, ylabel=None):
-    
+    '''
+    utility method to plot the imputation metrics by each characteristic, with the characteristics 
+    ordered in increasing volatility
+    '''
     char_names = []
     metrics_by_type = [[] for _ in input_metrics] 
 
@@ -126,7 +140,9 @@ def plot_metrics_by_mean_vol(mean_vols, input_metrics, names, chars, save_name=N
     if save_name is not None:
         save_base = '../images-pdfs/section5/metrics_by_char_vol_sort-'
         save_path = save_base + save_name + '.pdf'
+        plt.title(f'RMSE by characteristics for {save_name}')
         plt.savefig(save_path, bbox_inches='tight', format='pdf')
+        
     plt.show()
 
 def save_imputation(imputed_data, dates, permnos, chars, name):
@@ -146,6 +162,10 @@ def load_imputation(name, full=False):
 
 def get_imputation_metrics(imputed_chars, eval_char_data, monthly_update_mask, char_groupings, norm_func=None,
                           clip=True):
+    '''
+    utility method to calculate RMSE metrics for imputed chars
+    '''
+    
     by_char_metrics, by_char_m_metrics, by_char_q_metrics  = imputation_metrics.get_aggregate_imputation_metrics(imputed_chars,
                                                           eval_char_data, None, monthly_update_mask, char_groupings,
                                                           norm_func=norm_func, clip=clip)
@@ -153,7 +173,14 @@ def get_imputation_metrics(imputed_chars, eval_char_data, monthly_update_mask, c
 
 
 def get_present_flags(raw_char_panel):
-    
+    '''
+    utility method to get state of a characteristic from 
+    - observed
+    - missing at the start
+    - missing in the middle
+    - missing at the end
+    - company not observed
+    '''
     T, N, C = raw_char_panel.shape
     flag_panel = np.zeros_like(raw_char_panel, dtype=np.int8)
     
@@ -177,3 +204,53 @@ def get_present_flags(raw_char_panel):
         previous_entry[present_mask] = 1
     flag_panel[:,not_in_sample] = 0
     return flag_panel
+
+
+
+char_groupings  = [('A2ME', "Q"),
+                   ('AC', 'Q'),
+('AT', 'Q'),
+('ATO', 'Q'),
+('B2M', 'QM'),
+('BETA_d', 'M'),
+('BETA_m', 'M'),
+('C2A', 'Q'),
+('CF2B', 'Q'),
+('CF2P', 'QM'),
+('CTO', 'Q'),
+('D2A', 'Q'),
+('D2P', 'M'),
+('DPI2A', 'Q'),
+('E2P', 'QM'),
+('FC2Y', 'QY'),
+('IdioVol', 'M'),
+('INV', 'Q'),
+('LEV', 'Q'),
+('ME', 'M'),
+('TURN', 'M'),
+('NI', 'Q'),
+('NOA', 'Q'),
+('OA', 'Q'),
+('OL', 'Q'),
+('OP', 'Q'),
+('PCM', 'Q'),
+('PM', 'Q'),
+('PROF', 'QY'),
+('Q', 'QM'),
+('R2_1', 'M'),
+('R12_2', 'M'),
+('R12_7', 'M'),
+('R36_13', 'M'),
+('R60_13', 'M'),
+('HIGH52', 'M'),
+('RVAR', 'M'),
+('RNA', 'Q'),
+('ROA', 'Q'),
+('ROE', 'Q'),
+('S2P', 'QM'),
+('SGA2S', 'Q'),
+('SPREAD', 'M'),
+('SUV', 'M'),
+('VAR', 'M')]
+char_maps = {x[0]:x[1] for x in char_groupings}
+char_map = char_maps

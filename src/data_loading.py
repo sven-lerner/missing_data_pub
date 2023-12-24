@@ -3,6 +3,9 @@ import pandas as pd
 
 
 def percentile_rank(x, UNK=np.nan):
+    '''
+    utility method to quantile rank a vector
+    '''
     mask = np.logical_not(np.isnan(x))
     x_copy = np.copy(x)
     x_mask = x_copy[mask]
@@ -17,6 +20,9 @@ def percentile_rank(x, UNK=np.nan):
     return x_copy
 
 def percentile_rank_panel(char_panel):
+    '''
+    utility method to quantile rank the characteristics
+    '''
     ret_panel = np.zeros(char_panel.shape)
     ret_panel[:, :, :] = np.nan
     for t in range(char_panel.shape[0]):
@@ -26,6 +32,9 @@ def percentile_rank_panel(char_panel):
     return ret_panel
 
 def get_data_dataframe(data_panel, return_panel, char_names, dates, permnos, monthly_updates, mask):
+    '''
+    utility method to parse data tensor into a data-frame
+    '''
     T, N, C = data_panel.shape
     if mask is None:
         nonnan_returns = np.argwhere(np.logical_or(~np.isnan(return_panel), np.any(~np.isnan(data_panel),
@@ -52,6 +61,9 @@ def get_data_dataframe(data_panel, return_panel, char_names, dates, permnos, mon
     return chars_and_returns_df
 
 def get_data_panel(path, rf_path, computstat_data_present_filter=True, financial_firm_filter=True, start_date=None):
+    '''
+    utility method to parse feather file into tensor format
+    '''
     data = pd.read_feather(path)
     if start_date is not None:
         data = data.loc[data.date >= start_date]

@@ -127,8 +127,8 @@ class UnivariateSort(SectionSixBase):
         from matplotlib import rcParams
         rcParams.update({'figure.autolayout': True})
         
-        shares = np.load("/home/svenl/data/pelger/data/shares_outstanding.npz")["shrout"]
-        shrout_permnos = np.load("/home/svenl/data/pelger/data/shares_outstanding.npz")["permnos"]
+        shares = np.load("../data/shares_outstanding.npz")["shrout"]
+        shrout_permnos = np.load("../data/shares_outstanding.npz")["permnos"]
         shares = shares[-1*percentile_rank_chars.shape[0]:,np.isin(shrout_permnos, permnos)]
         sizes = regular_chars[:,:,size_ind]
         nyse_mask = section_6_utils.get_nyse_permnos_mask(dates, permnos, percentile_rank_chars)
@@ -168,8 +168,18 @@ class UnivariateBarDiffs(SectionSixBase):
     description = ''
     name = 'UnivariateBarDiffs'
 
-    def setup(self, percentile_rank_chars, chars, return_panel, char_groupings,
+    def setup(self, percentile_rank_chars, chars, return_panel,
         regular_chars, dates, permnos):
+        char_groupings = {
+            "Past Returns" : ['R2_1', 'R12_2', 'R12_7', 'R36_13', 'R60_13', 'HIGH52'],
+            "Investment": ['INV', 'NOA', 'DPI2A', 'NI'],
+            "Profitability": ['PROF', 'ATO', 'CTO', 'FC2Y', 'OP', 'PM', 'RNA', 'ROA', 'ROE', 'SGA2S', 
+                             'D2A'],
+            "Intangibles": ['AC', 'OA', 'OL', 'PCM'],
+            "Value": ['A2ME', 'B2M',  'C2A', 'CF2B', 'CF2P', 'D2P', 'E2P', 'Q',  'S2P'],
+            "Trading Frictions": ['BETA_d', 'BETA_m', 'SPREAD'],
+            "Other": ['AT', 'LEV', 'IdioVol', 'ME', 'TURN', 'RVAR', 'SUV', 'VAR']
+        }
         from matplotlib import rcParams
         rcParams.update({'figure.autolayout': True})
         

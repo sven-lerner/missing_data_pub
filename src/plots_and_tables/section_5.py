@@ -158,6 +158,7 @@ class ExampleImputations(SectionFivePlotBase):
                     plt.legend(fontsize=20, loc="lower center", bbox_to_anchor=(0.5, -0.5), ncol=3)
                     plt.gcf().subplots_adjust(bottom=0.25)
                     plt.ylim(lb, ub)
+                    plt.title(f"example imputation for {char} from {company_ticker} subset 1")
                     plt.savefig(save_path + f'{company_ticker}-{data_plot_name}-{char}.pdf', bbox_inches='tight')
                     plt.show()
                     fig = plt.figure(figsize=(10,5))
@@ -187,6 +188,7 @@ class ExampleImputations(SectionFivePlotBase):
                     plt.legend(fontsize=20, loc="lower center", bbox_to_anchor=(0.5, -0.5), ncol=3)
                     plt.gcf().subplots_adjust(bottom=0.25)
                     plt.ylim(lb, ub)
+                    plt.title(f"example imputation for {char} from {company_ticker} subset 2")
                     plt.savefig(save_path + f'{company_ticker}-{data_plot_name}-{char}-xs_only.pdf', bbox_inches='tight')
                     plt.show()
 

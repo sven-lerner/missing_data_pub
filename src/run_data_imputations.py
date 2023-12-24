@@ -54,6 +54,11 @@ char_map = {x[0]:x[1] for x in char_groupings}
 def run_all_imputations(missing_data_type, percentile_rank_chars, dates, return_panel, chars, industries,
                         monthly_updates
                        ):
+    '''
+    Run all the imputations for all the methods described in the paper main results for a particular kind of data masking
+    - missing_data_type defines the type of the masked data
+    First run global imputations i.e. use all the data to fit one model, then run local imputations i.e. a different model each month
+    '''
     
     fit_maps = {
         'MAR': "MAR_fit_data",

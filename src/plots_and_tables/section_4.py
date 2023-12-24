@@ -122,11 +122,9 @@ class Optimal_Num_Factors(SectionFourPlotBase):
                     eval_weight_lmbda=eval_weight,
                     shrink_lmbda=shrink_lmbda)
 
-                imputation = imputation_utils.impute_chars(gamma_ts, fit_data, 
-                                                     "None", None, char_groupings, num_months_train=T,
-                                                                    eval_char_data=eval_data,
-                                                                       window_size=None, lmbda=lmbda, tv_lmbda=False)
+                imputation = np.concatenate([np.expand_dims(g @ lmbda.T, axis=0) for g in gamma_ts], axis=0)
                 imputation = np.clip(imputation, -0.5, 0.5)
+                
                 def get_r2(tgt, imputed, monthly_char_mask, quarterly_char_mask):
                     tgt = np.copy(tgt)
                     tgt[np.isnan(imputed)] = np.nan
@@ -189,6 +187,7 @@ class Optimal_Num_Factors(SectionFourPlotBase):
         save_base = '../images-pdfs/section4/metrics_by_char_vol_sort-'
         save_path = save_base + self.name + '-incremental' + '.pdf'
         plt.savefig(save_path, bbox_inches='tight', format='pdf')
+        plt.title(f"incremental R2 for XS model on {tag} data by number of factors")
         plt.show()
         
         
@@ -200,6 +199,7 @@ class Optimal_Num_Factors(SectionFourPlotBase):
         plt.plot([0] + list(factor_nums), quarterly_mmse, label='quarterly characteristics')
         plt.gca().tick_params(axis='both', which='major', labelsize=15)
         plt.legend()
+        plt.title(f"R2 for XS model on {tag} data by number of factors")
         
 
 class Optimal_Reg(SectionFourPlotBase):
@@ -238,10 +238,8 @@ class Optimal_Reg(SectionFourPlotBase):
                     allow_mean=False,
                     eval_weight_lmbda=True)
 
-                imputation = imputation_utils.impute_chars(gamma_ts, fit_data, 
-                                                     "None", None, char_groupings, num_months_train=T,
-                                                                    eval_char_data=eval_data,
-                                                                       window_size=None, lmbda=lmbda, tv_lmbda=False)
+                imputation = np.concatenate([np.expand_dims(g @ lmbda.T, axis=0) for g in gamma_ts], axis=0)
+                
                 imputation = np.clip(imputation, -0.5, 0.5)
                 def get_r2(tgt, imputed, monthly_char_mask, quarterly_char_mask):
                     tgt = np.copy(tgt)
@@ -303,6 +301,7 @@ class Optimal_Reg(SectionFourPlotBase):
         plt.plot(regs, quarterly_mmse, label='quarterly characteristics')
         plt.gca().tick_params(axis='both', which='major', labelsize=15)
         plt.xscale('log')
+        plt.title(f"R2 for XS model on {tag} data")
         plt.legend()
         
 class GenCorr(SectionFourPlotBase):

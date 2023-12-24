@@ -12,6 +12,9 @@ from numpy.linalg import LinAlgError
 ############### Core Factor Imputation Model ####################
 
 def conditional_mean(Sigma, mu, i_mask, i_data):
+    '''
+    return the conditional mean of missing data give the covariance matrix and mean of the characteristcs
+    '''
     Sigma_11 = Sigma[~i_mask, :][:, ~i_mask]
     Sigma_12 = Sigma[~i_mask, :][:, i_mask]
     Sigma_22 = Sigma[i_mask, :][:, i_mask]
@@ -65,17 +68,20 @@ def get_optimal_A(B, A, present, cl, idxs=[], reg=0,
 
 
 def impute_panel_xp_lp(char_panel, return_panel, min_chars, K, num_months_train,
-                      reg=0,
+                      reg=0.01,
                       time_varying_lambdas=False,
                       window_size=1, 
                       n_iter=1,
                       eval_data=None,
-                      allow_mean=True,
+                      allow_mean=False,
                       eval_weight_lmbda=True,
                       resid_reg=False,
                       shrink_lmbda=False,
                       run_in_parallel=True):
-    
+    '''
+    Run the XS imputation as described in the paper
+    Default arguments represent configuration as described in the paper
+    '''
     char_panel = np.copy(char_panel)
     missing_mask_overall = np.isnan(char_panel)
     char_panel[np.sum(~np.isnan(missing_mask_overall), axis=2) < min_chars] = np.nan
@@ -253,6 +259,9 @@ def estimate_lambda(char_panel, return_panel, num_months_train, K, min_chars,
 
 
 def get_cov_mat(char_matrix, mu=None):
+    '''
+    utility method to get the covariance matrix of a partially observed set of chatacteristics
+    '''
     ct_int = (~np.isnan(char_matrix)).astype(float)
     ct = np.nan_to_num(char_matrix)
     if mu is None:
@@ -270,6 +279,9 @@ def get_sufficient_statistics_xs(gamma_ts, characteristics_panel):
 
 def get_sufficient_statistics_last_val(characteristics_panel, max_delta=None,
                                       residuals=None):
+    '''
+    utility method to get the last observed value of a characteristic if it has been previously observed
+    '''
     T, N, L = characteristics_panel.shape
     last_val = np.copy(characteristics_panel[0])
     if residuals is not None:
@@ -298,6 +310,9 @@ def get_sufficient_statistics_last_val(characteristics_panel, max_delta=None,
     return sufficient_statistics, deltas
 
 def get_sufficient_statistics_next_val(characteristics_panel, max_delta=None, residuals=None):
+    '''
+    utility method to get the next observed value of a characteristic if it is observed in the future
+    '''
     suff_stats, deltas = get_sufficient_statistics_last_val(characteristics_panel[::-1], max_delta=max_delta,
                                       residuals=None if residuals is None else residuals[::-1])
     return suff_stats[::-1], deltas[::-1]
@@ -305,7 +320,12 @@ def get_sufficient_statistics_next_val(characteristics_panel, max_delta=None, re
 
 def impute_chars(char_data, imputed_chars, residuals, 
                  suff_stat_method, constant_beta, beta_weight=True, noise=None):
-        
+    '''
+    run imputation as described in the paper, based on the type of sufficient statistics
+    - last-val B-XS
+    - next-val F-XS
+    - fwbw BF-XS
+    '''
     if suff_stat_method == 'last_val':
         suff_stats, _ = get_sufficient_statistics_last_val(char_data, max_delta=None,
                                                                            residuals=residuals)
@@ -352,6 +372,9 @@ def impute_chars(char_data, imputed_chars, residuals,
 def impute_beta_combined_regression(characteristics_panel, xs_imps, sufficient_statistics=None, 
                            beta_weights=None, constant_beta=False, get_betas=False, gamma_ts=None,
                                    use_factors=False, noise=None, reg=None, switch_off_on_suff_stats=False):
+    '''
+    Run the regression to fit the parameters of the regression model combining time series with cross-sectional information
+    '''
     T, N, L = characteristics_panel.shape
     K = 0
     if xs_imps is not None:
@@ -462,6 +485,9 @@ def impute_beta_combined_regression(characteristics_panel, xs_imps, sufficient_s
 def simple_imputation(gamma_ts, char_data, suff_stat_method, monthly_update_mask, char_groupings,
                                  eval_char_data=None, num_months_train=None, median_imputation=False,
                                  industry_median=False, industries=None):
+    '''
+    utility method to do either previous value, median or industry median imputation
+    '''
     if eval_char_data is None:
         eval_char_data = char_data
     imputed_chars = simple_impute(char_data)
@@ -504,6 +530,9 @@ def xs_industry_median_impute(char_panel, industry_codes):
     return imputed_panel
 
 def get_all_xs_vals(chars, reg, Lmbda, time_varying_lmbda=False, get_factors=False):
+    '''
+    utility method to get the "out of sample estimate" of an observed characteristic based on the XP method
+    '''
     C = chars.shape[-1]
     def impute_t(t_chars, reg, C, Lmbda, get_factors=False):
         if not get_factors:

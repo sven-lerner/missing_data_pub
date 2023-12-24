@@ -259,7 +259,9 @@ def impute_chars(gamma_ts, char_data, suff_stat_method, monthly_update_mask, cha
 from matplotlib.lines import Line2D
 
 import matplotlib.ticker as ticker
-from mpl_toolkits.axes_grid.parasite_axes import SubplotHost
+# from mpl_toolkits.axes_grid.parasite_axes import SubplotHost
+from mpl_toolkits.axisartist.parasite_axes import SubplotHost
+
 
 def bar_plot_mean_sharpe_diffs_seq(h_port_returns, l_port_returns, title, chars_to_plot_seq, series_to_plot,
                                   group_names, h_port_mean_returns, l_port_mean_returns, chars):

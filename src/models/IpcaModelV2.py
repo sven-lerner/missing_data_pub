@@ -3,7 +3,7 @@ import numpy as np
 from models import ipca_util
 from tqdm import tqdm
 from collections import defaultdict
-from models.ipca.ipca.ipca.ipca import InstrumentedPCA
+from models.ipca import InstrumentedPCA
 from models.ipca_util import CHAR_COLS, fit_ipca, calculate_sharpe_ratio, calculate_r2, calculate_is_cross_sectional_r2,\
     calculate_efficient_portofolio, get_f_t_from_first_order_conditions, predict, calcuate_XS_r2
 

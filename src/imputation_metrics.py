@@ -5,6 +5,9 @@ import numpy as np
 
 def get_imputation_metrics_time_series(imputed_data, gt_data, mask, tgt_char_inds, max_val=None, 
                            tgt_char=None, mse_mask=None):
+    '''
+    utility method to get the time series of RMSE by characteristic given imputed and ground truth data
+    '''
     if max_val is None:
         max_val = np.nanmax(np.abs(gt_data))
     if mse_mask is None:
@@ -34,6 +37,9 @@ def get_imputation_metrics_time_series(imputed_data, gt_data, mask, tgt_char_ind
 def get_aggregate_imputation_metrics(imputed_data, gt_data, mask, monthly_update_mask,
                                     char_freq_list, net_mask=None, norm_func=None,
                                     clip=True):
+    '''
+    utility method to get the aggregate RMSE by characteristic given imputed and ground truth data
+    '''
     if clip:
         imputed_data = np.clip(imputed_data, -0.5, 0.5) 
     mean_char_errors = []
@@ -60,7 +66,14 @@ def get_aggregate_imputation_metrics(imputed_data, gt_data, mask, monthly_update
 
 
 def get_flags(raw_char_panel, return_panel):
-    
+    '''
+    utility method to get wthe state of a characteristic
+    - observed
+    - missing at the start
+    - missing in the middle
+    - missing at the end
+    - company not observed
+    '''
     T, N, C = raw_char_panel.shape
     flag_panel = np.zeros_like(raw_char_panel, dtype=np.int8)
     first_occurances = np.argmax(~np.isnan(raw_char_panel), axis=0)

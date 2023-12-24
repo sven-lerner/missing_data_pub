@@ -4,7 +4,6 @@ import time
 
 import numpy as np
 import re
-from models.ipca.ipca.ipca import InstrumentedPCA
 
 approx_matcher = re.compile('rank\-[0-9]\-approx')
 
