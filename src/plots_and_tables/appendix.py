@@ -84,7 +84,7 @@ class NonlinearIPCA(AppendixTableBase):
         def get_sharpes(decile_chars, imputed_decile_chars, chars, return_panel, rts, nfactors):
             
             
-            NUM_MONTHS_TRAIN = 280
+            NUM_MONTHS_TRAIN = 30
             
 
             results = []
@@ -207,7 +207,7 @@ class NonlinearIPCA(AppendixTableBase):
         plt.xticks([i*3 + 1 for i in range(7)], labels=[f"K={i+3}" for i in range(7)])
         plt.minorticks_off()
         plt.gca().tick_params(axis='both', which='major', labelsize=20)
-        plt.savefig(f'../images-pdfs/revision/decile_ipca_sharpes_in_sample.pdf'.replace(' ', ''), 
+        plt.savefig(f'../images-pdfs/appendix/decile_ipca_sharpes_in_sample.pdf'.replace(' ', ''), 
                             bbox_inches='tight')
         plt.show()
 
@@ -221,7 +221,7 @@ class NonlinearIPCA(AppendixTableBase):
         plt.xticks([i*3 + 1 for i in range(7)], labels=[f"K={i+3}" for i in range(7)])
         plt.minorticks_off()
         plt.gca().tick_params(axis='both', which='major', labelsize=20)
-        plt.savefig(f'../images-pdfs/revision/decile_ipca_sharpes_outof_sample.pdf'.replace(' ', ''), 
+        plt.savefig(f'../images-pdfs/appendix/decile_ipca_sharpes_outof_sample.pdf'.replace(' ', ''), 
                             bbox_inches='tight')
         plt.show()
           

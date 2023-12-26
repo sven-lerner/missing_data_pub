@@ -76,7 +76,7 @@ def plot_factor(lmbda, index, chars, tag):
     custom_lines = [Line2D([0], [0], color=group_colors[i], lw=4) for i in range(len(groups))]
 
     ax.legend(custom_lines, groups)
-    save_path = f'../images-pdfs/revision/'
+    save_path = f'../images-pdfs/appendix/'
     plt.savefig(save_path + f'factor_vis_{index}_{tag}.pdf', bbox_inches='tight')
     plt.show()
     
@@ -95,7 +95,8 @@ def get_sparse_lmbda(lmbda, gammas, gamma_tildes, L,K,reg,group_masks):
         for mask in group_masks:
             cost += reg * cp.norm(lmbda_tilde[mask, k], p=2) * scale / np.sum(mask)
     prob = cp.Problem(cp.Minimize(cost))
-    prob.solve(solver='GUROBI', verbose=False)
+    # prob.solve(solver='GUROBI', verbose=False)
+    prob.solve(solver='SCS', verbose=False)
     return lmbda_tilde.value
 
 
