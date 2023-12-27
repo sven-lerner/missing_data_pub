@@ -1,6 +1,10 @@
 # Missing Financial Data Result Replication Code
 
-## Notes about Data
+## Data
+
+The data file we have provided `raw_rank_trunk_chars.npz` should be placed in the `data/` directory in the project if it is not already there.
+
+### Notes about Data
 
 Note, there are two differences between the data-set we have provided and the data-set used in the paper
 1. The data-set we have provided is a truncated version of the data-set in the paper. This is because the full data-set is around 20 GB, and running all the results requires making multiple copies of the data-set, which is very time and space consuming
