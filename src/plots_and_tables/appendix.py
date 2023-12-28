@@ -40,7 +40,7 @@ class Simulation():
                 _ = plt.boxplot(np.array(standard_results)[:,::2], labels=columns[::2], showmeans=True)
                 _ = plt.title(f"MCAR data, MSE, K={K} L={L}")
                 _ = plt.xticks(rotation='vertical')
-                save_path = f'../images-pdfs/appendix/MAR_simulation_CCMSE_residreg_L={L}_K={K}.pdf'
+                save_path = f'../images-pdfs/appendix/{missing_type}_simulation_CCMSE_residreg_L={L}_K={K}.pdf'
                 plt.savefig(save_path)
                 plt.show()
 
@@ -48,7 +48,7 @@ class Simulation():
                 _ = plt.boxplot(np.array(standard_results)[:,1::2], labels=columns[1::2], showmeans=True)
                 _ = plt.title(f"MCAR data, CC MSE, K={K} L={L}")
                 _ = plt.xticks(rotation='vertical')
-                save_path = f'../images-pdfs/appendix/MAR_simulation_CCMSE_residreg_L={L}_K={K}.pdf'
+                save_path = f'../images-pdfs/appendix/{missing_type}_simulation_CCMSE_residreg_L={L}_K={K}.pdf'
                 plt.savefig(save_path, bbox_inches='tight')
                 plt.show()
 
