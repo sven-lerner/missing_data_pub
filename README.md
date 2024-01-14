@@ -41,10 +41,10 @@ Within each notebook, the first cell corresponds to data-loading and imports, an
 
 Main Text
 1. Figure 1: Missing Values over Time `run_section_2_plots.ipynb` code located [here](https://github.com/sven-lerner/missing_data_pub/blob/main/src/plots_and_tables/section_2.py#L132) `images-pdfs/section2/MissingValuesOverTime.pdf`
-2. Figure 2: Missing Observations by Characteristic `run_section_2_plots.ipynb` code located [here](https://github.com/sven-lerner/missing_data_pub/blob/main/src/plots_and_tables/section_2.py#L132) `images-pdfs/section2/MissingObservationByCharacteristic.pdf`
-3. Figure 3: Missing Observations by Characteristic Quintiles
+2. Figure 2: Missing Observations by Characteristic `run_section_2_plots.ipynb` code located [here](https://github.com/sven-lerner/missing_data_pub/blob/main/src/plots_and_tables/section_2.py#L219) `images-pdfs/section2/MissingObservationByCharacteristic.pdf`
+3. Figure 3: Missing Observations by Characteristic Quintiles `run_section_2_plots.ipynb` code located [here](https://github.com/sven-lerner/missing_data_pub/blob/main/src/plots_and_tables/section_2.py#L1003) `images-pdfs/section2/[MissingValuesByCharQuintile.pdf, MissingValuesBySizeQuintile.pdf]`
 4. Table 1: Logistic Regressions Explaining Missingess `run_section_2_plots.ipynb` code located [here](https://github.com/sven-lerner/missing_data_pub/blob/main/src/plots_and_tables/section_2.py#L667) `images-pdfs/section2/MissingLogitRegressions.tex`
-5. Figure 4: Autocorrelation of Characteristic Ranks `run_section_2_plots.ipynb` code located [here](https://github.com/sven-lerner/missing_data_pub/blob/main/src/plots_and_tables/section_2.py#L219) `images-pdfs/section2/AutocorrOfChars.pdf`
+5. Figure 4: Autocorrelation of Characteristic Ranks `run_section_2_plots.ipynb` code located [here](https://github.com/sven-lerner/missing_data_pub/blob/main/src/plots_and_tables/section_2.py#L401) `images-pdfs/section2/AutocorrOfChars.pdf`
 6. Figure 5: Heatmap of Pairwise Correlation `run_section_2_plots.ipynb` code located [here](https://github.com/sven-lerner/missing_data_pub/blob/main/src/plots_and_tables/section_2.py#L441) `images-pdfs/section2/HeatmatOfCorr.pdf`
 7. Figure 6: Joint Distribution of Missing Patterns `run_section_3_plots.ipynb`  code located [here](https://github.com/sven-lerner/missing_data_pub/blob/main/src/plots_and_tables/section_3.py#L42) result written to `images-pdfs/section3/missing--20180331.pdf`
 8. Figure 7: Eigenvalues of Σ `run_section_4_plots.ipynb` code located [here](https://github.com/sven-lerner/missing_data_pub/blob/main/src/plots_and_tables/section_4.py#L63)  result written to `images-pdfs/section4/figure_2_avg_cov_ev.pdf`
