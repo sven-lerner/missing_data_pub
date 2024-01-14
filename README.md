@@ -41,7 +41,7 @@ Within each notebook, the first cell corresponds to data-loading and imports, an
 
 Main Text
 1. Figure 1: Missing Values over Time `run_section_2_plots.ipynb` code located (src/plots_and_tables/section_2.py) `images-pdfs/section2/MissingValuesOverTime.pdf`
-2. Figure 2: Missing Observations by Characteristic `run_section_2_plots.ipynb` code located (src/plots_and_tables/section_2.py) `images-pdfs/section2/MissingObservationByCharacteristic.pdf`
+2. Figure 2: Missing Observations by Characteristic `run_section_2_plots.ipynb` code located (src/plots_and_tables/section_2.py) `images-pdfs/section2/MissingObservationByCharacteristic_by_permno_first.pdf`
 3. Figure 3: Missing Observations by Characteristic Quintiles `run_section_2_plots.ipynb` code located (src/plots_and_tables/section_2.py) `images-pdfs/section2/[MissingValuesByCharQuintile.pdf, MissingValuesBySizeQuintile.pdf]`
 4. Table 1: Logistic Regressions Explaining Missingess `run_section_2_plots.ipynb` code located (src/plots_and_tables/section_2.py) `images-pdfs/section2/MissingLogitRegressions.tex`
 5. Figure 4: Autocorrelation of Characteristic Ranks `run_section_2_plots.ipynb` code located (src/plots_and_tables/section_2.py) `images-pdfs/section2/AutocorrOfChars.pdf`
