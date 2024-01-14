@@ -11,6 +11,7 @@ import pandas as pd
 from sklearn import metrics
 import pandas as pd
 import statsmodels.api as sm
+import matplotlib.pyplot as plt
 
 
 class SectionTwoPlotBase(plot_base.PaperPlot, ABC):
@@ -128,7 +129,541 @@ def print_results(ret_data, include_chars, include_FE, include_last_val, include
 
     
 
-    
+class MissingValuesOverTime(SectionTwoPlotBase):
+    name = 'MissingValuesOverTime'
+    description = ''
+
+    def setup(self, percentile_rank_chars, regular_chars, return_panel, dates, permnos, chars, char_groupings, monthly_updates):
+        cc = ['B2M', 'OP', 'INV', 'LEV', 'DPI2A']
+        fig, axs = plt.subplots(3, 2, figsize=(15, 9))
+
+        # plot1
+        dates = [pd.to_datetime(str(int(x))) for x in dates]
+        observed_chars = ~np.isnan(regular_chars)
+        
+        observed_stocks = np.logical_or(~np.isnan(return_panel), np.any(observed_chars, axis=2))
+        
+        # (a)
+        axs[0,0].plot(dates, np.sum(observed_stocks, axis=1), label='All')
+        
+        for i, c in enumerate(chars):
+            if c in cc:
+                axs[0,0].plot(dates, np.sum(observed_chars[:,:,i], axis=1), label=c)
+        axs[0,0].legend()
+        axs[0,0].set_title("Number of Stocks")
+
+        # (b)
+        for i, c in enumerate(chars):
+            if c in cc:
+                axs[0,1].plot(dates, 100 *(1 - np.sum(observed_chars[:,:,i], axis=1) / np.sum(observed_stocks, axis=1)), label=c)
+        axs[0,1].legend()
+        axs[0,1].set_title("Missing Percentage")
+
+
+        # (c)
+        ME = np.nan_to_num(regular_chars[:,:,np.argwhere(chars == 'ME')[0][0]])
+        mkt_cap = np.sum(ME, axis=1)
+        
+        for i, c in enumerate(chars):
+            if c in cc:
+                axs[1,0].plot(dates, 100 * (1 - np.sum(observed_chars[:,:,i] * np.nan_to_num(ME), axis=1) / mkt_cap), label=c)
+        axs[1,0].legend()
+        axs[1,0].set_title("Missing Market Cap.")
+
+
+        q_chars = [x[0] for x in char_groupings if x[1] == 'Q']
+        q_mask = np.isin(chars, q_chars)
+        m_chars = [x[0] for x in char_groupings if x[1] == 'M']
+        m_mask = np.isin(chars, m_chars)
+        
+        axs[1,1].plot(dates, 100 *(1 - np.sum(observed_chars[:,:,m_mask], axis=(1,2)) / (len(m_chars) * np.sum(observed_stocks, axis=1))), 
+                 label='Monthly - EW')
+        
+        axs[1,1].plot(dates, 100 *(1 - np.sum(observed_chars[:,:,q_mask], axis=(1,2)) / (len(q_chars) * np.sum(observed_stocks, axis=1))), 
+                 label='Quarterly - EW')
+        
+        axs[1,1].plot(dates, 100 *(1 - np.sum(observed_chars[:,:,m_mask] * np.expand_dims(ME, axis=2), axis=(1,2)) / (len(m_chars) * mkt_cap)), 
+                 label='Monthly - VW')
+        
+        axs[1,1].plot(dates, 100 *(1 - np.sum(observed_chars[:,:,q_mask] * np.expand_dims(ME, axis=2), axis=(1,2)) / (len(q_chars) * mkt_cap)), 
+                 label='Quarterly - VW')
+        
+        axs[1,1].set_title('Quarterly & Monthly')
+        axs[1,1].legend()
+
+        me_rank = percentile_rank_chars[:,:,np.argwhere(chars == 'ME')[0][0]]
+        bounds = [[-0.5, -0.3], [-0.3, -0.1], [-0.1, 0.1], [0.1, 0.3], [0.3, 0.51]]
+        
+        for i, (lb, ub) in enumerate(bounds):
+            mask = np.logical_and(me_rank >= lb, me_rank < ub)
+            axs[2,0].plot(dates, 100 *(1 - np.sum(observed_chars * np.expand_dims(mask, axis=2), axis=(1, 2)) / (45 * np.sum(mask, axis=1))), 
+                     label=f"ME{i+1}")
+        
+        axs[2,0].legend()
+        axs[2,0].set_title('Size Quintiles')
+
+
+        cutoffs = [0, 3, 15, 35]
+        num_observed = np.sum(observed_chars, axis=2) * observed_stocks
+        
+        for c in cutoffs:
+            label = '=0' if c == 0 else f"<={c}"
+            axs[2,1].plot(dates, 100 * np.sum(num_observed >= 45 - c, axis=1) / np.sum(observed_stocks, axis=1), 
+                     label=label)    
+        
+        axs[2,1].legend()
+        axs[2,1].set_title('Multiple Characteristics')
+        plt.tight_layout()
+
+
+class MissingObservationByCharacteristic(SectionTwoPlotBase):
+    name = 'MissingObservationByCharacteristic'
+    description = ''
+
+    def setup(self, percentile_rank_chars, regular_chars, return_panel, dates, permnos, chars, char_groupings, monthly_updates,
+             ignore_fully_missing=False, mkt_weight=False, first_mean_permno=False):
+        from imputation_metrics import get_flags
+        from data_loading import get_data_dataframe
+
+        def get_missing_percs(df):
+            df = df.T
+            missing_percs = [100 * (df == -1).sum(axis=1) / len(df.columns), # start
+                         100 * (df == -2).sum(axis=1) / len(df.columns), # middle
+                         100 * (df == -3).sum(axis=1) / len(df.columns), # end
+                         100 * (df == -4).sum(axis=1) / len(df.columns), # stock missing
+                         100 * (df == -5).sum(axis=1) / len(df.columns), # totally_missing missing
+                        ]
+            missing_percs = pd.concat(missing_percs, axis=1)
+            missing_percs.columns = ['Start', 'Middle', 'End', 'Stock Miss.', 'Complete']
+            return missing_percs
+        
+        flag_panel = get_flags(regular_chars, return_panel)
+        
+        flags = get_data_dataframe(flag_panel, return_panel, chars, dates, permnos, monthly_updates, None)
+        
+        flags.date = pd.to_datetime(flags.date.astype(int).astype(str))
+
+        flags = flags.set_index(['permno', 'date'])[chars]
+
+        if first_mean_permno:
+            missing_percs = flags.groupby(level=0).apply(get_missing_percs).groupby(level=1).mean()
+        else:
+            missing_percs = flags.groupby(level=1).apply(get_missing_percs).groupby(level=1).mean()
+
+        if ignore_fully_missing:
+            missing_percs = missing_percs.drop(columns='Complete')
+
+        # if ignore_fully_missing:
+        #     flags = flags.loc[(flags != -5).any(axis=1)]
+
+        ordering = [
+        'DPI2A',
+        'R60_13',
+        'HIGH52',
+        'AC',
+        'OA',
+        'SGA2S',
+        'FC2Y',
+        'D2A',
+        'R36_13',
+        'BETA_d',
+        'INV',
+        'NI',
+        'OP',
+        'RNA',
+        'ROA',
+        'NOA',
+        'LEV',
+        'ATO',
+        'CTO',
+        'ROE',
+        'OL',
+        'C2A',
+        'BETA_m',
+        'PCM',
+        'PM',
+        'PROF',
+        'Q',
+        'A2ME',
+        'AT',
+        'CF2B',
+        'B2M',
+        'S2P',
+        'R12_2',
+        'E2P',
+        'CF2P',
+        'R12_7',
+        'SUV',
+        'TURN',
+        'RVAR',
+        'VAR',
+        'IdioVol',
+        'SPREAD',
+        'D2P',
+        'R2_1',
+        'ME',]
+
+        missing_percs = missing_percs.reindex(ordering)
+        missing_percs.plot(kind='bar', stacked=True, color=['blue', 'orange', 'red', 'grey', 'black'])
+ 
+        plt.title('Missing Observations by Characteristic')
+
+
+
+import seaborn as sns
+
+class MissingObservationBySizeQuintile(SectionTwoPlotBase):
+    name = 'MissingValuesBySizeQuintile'
+    description = ''
+
+    def setup(self, percentile_rank_chars, regular_chars, return_panel, dates, permnos, chars, char_groupings, monthly_updates):
+        
+        observed_chars = ~np.isnan(regular_chars)
+        
+        observed_stocks = np.logical_or(~np.isnan(return_panel), np.any(observed_chars, axis=2))
+        
+        ax = plt.gca()
+        
+        prop_cycle = ['black', 'blue', 'orange', 'grey', 'red', 'green']
+        
+        me_rank = np.nanmean(percentile_rank_chars[:,:,np.argwhere(chars == 'ME')[0][0]], axis=0).reshape(1, -1)
+        
+        
+        bounds = [[-0.5, -0.3], [-0.3, -0.1], [-0.1, 0.1], [0.1, 0.3], [0.3, 0.51]]
+        
+        vals = []
+        for i, (lb, ub) in enumerate(bounds):
+            mask = np.logical_and(me_rank >= lb, me_rank < ub)
+            mask_over_time = np.logical_and(observed_stocks, mask)
+            
+            vals.append(100 * (1 - np.sum(observed_chars * np.expand_dims(mask, axis=2), axis=(0, 1, 2)) /
+                                  (45 * np.sum(mask_over_time, axis=(0, 1)))
+                              ))
+        
+        _=sns.regplot(x=[1,2,3,4,5], y=vals, scatter=False, order=3, ci=False, 
+                              line_kws={'lw':3}, ax=ax, color=prop_cycle[0], label='All')
+        
+        
+        cc = ['B2M', 'OP', 'INV', 'LEV', 'DPI2A']
+        for j, c in enumerate(cc):
+            vals = []
+            for i, (lb, ub) in enumerate(bounds):
+                c_idx = np.argwhere(chars == c)[0][0]
+                mask = np.logical_and(me_rank >= lb, me_rank < ub)
+                mask_over_time = np.logical_and(observed_stocks, mask)
+                vals.append(100 *(1 - np.sum(observed_chars[:,:,c_idx] * mask, axis=(0, 1)) / (np.sum(mask_over_time, axis=(0, 1)))))
+            
+            _=sns.regplot(x=[1,2,3,4,5], y=vals, scatter=False, order=3, ci=False, 
+                              line_kws={'lw':3}, ax=ax, color=prop_cycle[j+1], label=c)
+           
+        
+        plt.legend()
+        plt.title('Size Quintiles')
+        
+        plt.xticks([1,2,3,4,5])
+
+class MissingObservationByCharacteristicQuintile(SectionTwoPlotBase):
+    name = 'MissingValuesByCharQuintile'
+    description = ''
+
+    def setup(self, percentile_rank_chars, regular_chars, return_panel, dates, permnos, chars, char_groupings, monthly_updates):
+        observed_chars = ~np.isnan(regular_chars)
+        
+        observed_stocks = np.logical_or(~np.isnan(return_panel), np.any(observed_chars, axis=2))
+        ax = plt.gca()
+        
+        bounds = [[-0.5, -0.3], [-0.3, -0.1], [-0.1, 0.1], [0.1, 0.3], [0.3, 0.51]]
+        prop_cycle = ['black', 'blue', 'orange', 'grey', 'red', 'green']
+        
+        cc = ['B2M', 'OP', 'INV', 'LEV', 'DPI2A']
+        for j, c in enumerate(cc):
+            vals = []
+            for i, (lb, ub) in enumerate(bounds):
+                c_idx = np.argwhere(chars == c)[0][0]
+                c_rank = percentile_rank_chars[:,:,c_idx]
+                avg_c_rank = np.nanmean(c_rank, axis=0)
+                
+                mask = np.logical_and(avg_c_rank >= lb, avg_c_rank < ub)
+                mask_over_time = np.logical_and(observed_stocks, avg_c_rank.reshape(1, -1))
+                
+                vals.append(100 *(1 - np.sum(observed_chars[:,:,c_idx] * mask.reshape(1, -1), axis=(0, 1)) / (np.sum(mask_over_time, axis=(0, 1)))))
+        
+            _=sns.regplot(x=[1,2,3,4,5], y=vals, scatter=False, order=3, ci=False, 
+                              line_kws={'lw':3}, ax=ax, color=prop_cycle[j+1], label=c)
+        plt.title('Char Quintiles')
+        
+        plt.legend()
+        
+        plt.xticks([1,2,3,4,5])
+        
+
+
+class AutocorrOfChars(SectionTwoPlotBase):
+    name = 'AutocorrOfChars'
+    description = ''
+
+    def setup(self, percentile_rank_chars, regular_chars, return_panel, dates, permnos, chars, char_groupings, monthly_updates):
+        def autocorr(char_panel, char_groupings):
+            fig = plt.figure(figsize=(15,10))
+            ordering = None
+        
+            T, N, C = char_panel.shape
+            char_auto_corrs = []
+            for c in tqdm(range(C)):
+                auto_corrs = []
+                for n in range(N):
+                    if np.sum(~np.isnan(char_panel[:,n,c])) >= 60:
+                        s = pd.Series(data = char_panel[:,n,c], index=dates)
+                        first_idx = s.first_valid_index()
+                        last_idx = s.last_valid_index()
+                        s = s.loc[first_idx:last_idx]
+                        if char_groupings[c][1] == 'M':
+                            auto_corrs.append((s.autocorr(lag=1), s.autocorr(lag=12)))
+                        else:
+                            auto_corrs.append((s.autocorr(lag=3), s.autocorr(lag=12)))
+                char_auto_corrs.append(np.nanmean(auto_corrs, axis=0))
+            
+            if ordering is None:
+                ordering = np.argsort(np.array(char_auto_corrs)[:,0])[::-1]
+            
+            plt.plot(np.arange(45), np.array(char_auto_corrs)[ordering,0], label=f'1 month')
+            plt.plot(np.arange(45), np.array(char_auto_corrs)[ordering,1], label=f'12 month')
+            
+            plt.legend()
+            # save_path = f'../images-pdfs/revision/'
+            plt.xticks(np.arange(45), chars[ordering], rotation=90, fontsize=15)
+            # plt.savefig(save_path + f'auto_corrs.pdf', bbox_inches='tight')
+            plt
+
+        autocorr(percentile_rank_chars, char_groupings)
+
+
+class HeatmatOfCorr(SectionTwoPlotBase):
+    name = 'HeatmatOfCorr'
+    description = ''
+
+    def setup(self, percentile_rank_chars, regular_chars, return_panel, dates, permnos, chars, char_groupings, monthly_updates):
+        def nancorr(c1, c2):
+            mask = np.logical_and(~np.isnan(c1), ~np.isnan(c2))
+            return np.corrcoef(c1[mask], c2[mask])[0, 1]
+        def nancorr_mat(m1):
+            T, C = m1.shape
+            corr_mat = np.zeros((C, C))
+            for i in range(C):
+                for j in range(i, C):
+                    corr_mat[i,j] = corr_mat[j,i] = nancorr(m1[:,i], m1[:,j])
+            return corr_mat
+        def get_pariwise_corrs(ranked_chars):
+            pairwise_corrs = [nancorr_mat(ranked_chars[:,i,:]) for i in tqdm(range(ranked_chars.shape[1]))]
+            return np.nanmean(pairwise_corrs, axis=0)
+        
+        from tqdm.notebook import tqdm
+        pairwise_chars = get_pariwise_corrs(percentile_rank_chars[:,:])
+        corrs = pd.DataFrame(pairwise_chars, index=chars, columns=chars)
+        ordering = [
+            'ATO', 'OL',
+        'CTO',
+        'PROF',
+        'D2A',
+        'NOA',
+        'AC',
+        'OA',
+        'R2_1',
+        'SUV',
+        'SPREAD',
+        'RVAR',
+        'IdioVol',
+        'VAR',
+        'FC2Y',
+        'SGA2S',
+        'C2A',
+        'BETA_d',
+        'BETA_m',
+        'TURN',
+        'NI',
+        'Q',
+        'B2M',
+        'A2ME',
+        'LEV',
+        'S2P',
+        'AT',
+        'ME',
+        'E2P',
+        'CF2P',
+        'D2P',
+        'DPI2A',
+        'INV',
+        'PCM',
+        'R12_2',
+        'R12_7',
+        'HIGH52',
+        'OP',
+        'PM',
+        'CF2B',
+        'R36_13',
+        'R60_13',
+        'ROA',
+        'RNA',
+        'ROE',
+        ]
+
+        import seaborn as sns
+        n = 45
+        fig, ax = plt.subplots(figsize=(26, 26))
+            
+        cax = ax.matshow(corrs.loc[ordering, ordering], cmap='RdBu_r',vmax=0.65, vmin=-0.65)
+        # #     cax = ax.matshow(corr, cmap=cmap)
+        
+        # # Major ticks
+        ax.set_xticks(np.arange(0, n, 1))
+        ax.set_yticks(np.arange(0, n, 1))
+        
+        # # Labels for major ticks
+        ax.set_xticklabels(np.arange(1, n+1, 1))
+        ax.set_yticklabels(np.arange(1, n+1, 1))
+        
+        # # Minor ticks
+        ax.set_xticks(np.arange(-.5, n, 1), minor=True)
+        ax.set_yticks(np.arange(-.5, n, 1), minor=True)
+        
+        # Gridlines based on minor ticks
+        ax.grid(which='minor', color='w', linestyle='-', linewidth=2)
+        ax.grid(which='major', color='w', linestyle='-', linewidth=0)
+        
+        
+        plt.xticks(range(len(ordering)), ordering, rotation=70, fontsize=33, weight='normal');
+        plt.yticks(range(len(ordering)), ordering, rotation=0,fontsize=33, weight='medium');
+        
+        ax.tick_params(bottom=False, top=True, left=True, right=True)
+        ax.tick_params(labelbottom=True, labeltop=True, labelleft=True, labelright=True)
+        
+        #     plt.minorticks_off()
+        cbar = fig.colorbar(cax, aspect=40, shrink=.5, pad=.072, location='right')
+        cbar.ax.tick_params(labelsize=25)
+        plt.grid()
+        
+        ax.set_aspect(1)
+        plt.tight_layout()
+        #     plt.subplots_adjust(right=1.15, top=2.5, bottom=-.75)
+        plt.subplots_adjust(right=1.1)
+        
+        # sns.heatmap(corrs.loc[ordering, ordering], annot=False)
+
+
+class HeatmatOfMissingPerc(SectionTwoPlotBase):
+    name = 'HeatmatOfMissingPerc'
+    description = ''
+
+    def setup(self, percentile_rank_chars, regular_chars, return_panel, dates, permnos, chars, char_groupings, monthly_updates):
+        observed_chars = ~np.isnan(regular_chars)
+        
+        observed_stocks = np.logical_or(~np.isnan(return_panel), np.any(observed_chars, axis=2))
+        
+        missing_t_perc = [
+            100 *(1 - np.sum(observed_chars[:,:,i], axis=1) / np.sum(observed_stocks, axis=1))
+        for i, c in enumerate(chars)
+        ]
+        dates = [pd.to_datetime(str(int(x))) for x in dates]
+        
+        missing_t_perc = pd.DataFrame(missing_t_perc, index=chars, columns=dates)
+        
+        char_lbl_q = ['A2ME', 'AC', 'AT', 'ATO', 'B2M', 'C2A', 'CF2B', 'CF2P', 'CTO', 'D2A', 'DPI2A', 'E2P', 'FC2Y', 'INV', 'LEV', 'NI', 
+              'NOA', 'OA', 'OL', 'OP', 'PCM', 'PM', 'PROF', 'Q', 'RNA', 'ROA', 'ROE', 'S2P', 'SGA2S']
+        
+        char_lbl_m = [x for x in chars if x not in char_lbl_q]
+        
+        
+        from matplotlib import cm
+        from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+        
+        cmp = cm.get_cmap('plasma_r', 100+4)
+        newcolors = cmp(np.linspace(0, 1, 100+4))
+        newcolors[0]
+        yello = [1, 1, .8, 1]
+        white = np.array([1,1,1,1])
+        newcolors = newcolors[4:]
+        
+        l = 2
+        newcolors[:l, :] = yello #white
+        newcmp = ListedColormap(newcolors)
+        len(newcolors), 100*l/len(newcolors)
+
+        fig, ax = plt.subplots(2,1, figsize=(22,16))
+        plt.grid(False)
+        
+        # x = missing_t_mean[char_lbl_q].resample('M').mean().T
+        x = missing_t_perc.loc[char_lbl_q].sort_index()
+        # _=sns.heatmap(missing_t_mean[char_lbl_q].resample('Y').mean().T, cmap="YlGnBu", vmax=1)
+        
+        cax=ax[0].matshow(x, cmap=newcmp, aspect='auto', vmax=100*.5, vmin=0)
+        
+        ny, nx = x.shape
+        
+        # y ticks
+        _=ax[0].set_yticks(np.arange(0, ny, 1))
+        _=ax[0].set_yticklabels(x.index, fontdict={'fontsize':24})
+        
+        # x ticks
+        xticks = np.arange(3*12, nx, 3*40) # monthly
+        # xticks = np.arange(12, nx, 40) # quarterly
+        
+        # xticks = xticks[:-1]
+        xticklabels = [str(i.quarter)+'/'+str(i.year) for i in x.columns[xticks]]
+        _=ax[0].set_xticks(xticks)
+        _=ax[0].set_xticklabels(xticklabels, fontdict={'fontsize':24})
+        _=ax[0].xaxis.set_ticks_position('bottom')
+        _=ax[0].tick_params(width=3,  length=15, direction='inout')
+        
+        # # Minor ticks
+        # _=ax.set_xticks([])#(np.arange(-.5, 10, 1), minor=True)
+        # _=ax.set_yticks(np.arange(-.5, ny, 1), minor=True)
+        
+        _=ax[0].set_xticks([], minor=True)
+        _=ax[0].set_yticks(np.arange(-.5, ny, 1), minor=True)
+        _=ax[0].grid(which='minor', color='w', linestyle='-', linewidth=1.5)
+        
+        cbar = fig.colorbar(cax, aspect=30, shrink=.85, pad=0.02, format='%2.0f%%')
+        # cbar.ax.tick_params(labelsize=17)
+
+        x = missing_t_perc.loc[char_lbl_m].sort_index()
+        # _=sns.heatmap(missing_t_mean[char_lbl_q].resample('Y').mean().T, cmap="YlGnBu", vmax=1)
+        
+        cax=ax[1].matshow(x, cmap=newcmp, aspect='auto', vmax=100*.5, vmin=0)
+        
+        ny, nx = x.shape
+        
+        # y ticks
+        _=ax[1].set_yticks(np.arange(0, ny, 1))
+        _=ax[1].set_yticklabels(x.index, fontdict={'fontsize':24})
+        
+        # x ticks
+        xticks = np.arange(3*12, nx, 3*40) # monthly
+        # xticks = np.arange(12, nx, 40) # quarterly
+        
+        # xticks = xticks[:-1]
+        xticklabels = [str(i.quarter)+'/'+str(i.year) for i in x.columns[xticks]]
+        _=ax[1].set_xticks(xticks)
+        _=ax[1].set_xticklabels(xticklabels, fontdict={'fontsize':24})
+        _=ax[1].xaxis.set_ticks_position('bottom')
+        _=ax[1].tick_params(width=3,  length=15, direction='inout')
+        
+        # # Minor ticks
+        # _=ax.set_xticks([])#(np.arange(-.5, 10, 1), minor=True)
+        # _=ax.set_yticks(np.arange(-.5, ny, 1), minor=True)
+        
+        _=ax[1].set_xticks([], minor=True)
+        _=ax[1].set_yticks(np.arange(-.5, ny, 1), minor=True)
+        _=ax[1].grid(which='minor', color='w', linestyle='-', linewidth=1.5)
+        
+        cbar = fig.colorbar(cax, aspect=30, shrink=.85, pad=0.02, format='%2.0f%%')
+
+        
+        # plt.minorticks_off()
+        dpi = 60
+        plt.gcf().set_dpi(dpi)
+        plt.tight_layout()
+        # plt.savefig(DIR+'missing_t_heatmap_m.pdf')
+
 class MissingLogitRegressions(SectionTwoTableBase):
     
     name = 'MissingLogitRegressions'
