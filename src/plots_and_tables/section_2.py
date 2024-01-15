@@ -221,29 +221,53 @@ class MissingObservationByCharacteristic(SectionTwoPlotBase):
     description = ''
 
     def setup(self, percentile_rank_chars, regular_chars, return_panel, dates, permnos, chars, char_groupings, monthly_updates,
-             ignore_fully_missing=False, mkt_weight=False, first_mean_permno=False):
+             ignore_fully_missing=False, mkt_weight=False, first_mean_permno=False, value_weight=False):
+        if first_mean_permno:
+            self.name += '_by_permno_first'
+        else:
+            self.name += '_by_date_first'
+
+        
+        
         from imputation_metrics import get_flags
         from data_loading import get_data_dataframe
 
-        def get_missing_percs(df):
+        def get_missing_percs(df, weight=None):
+            weights = df['weights'].T
+            df = df.drop(columns='weights')
             df = df.T
-            missing_percs = [100 * (df == -1).sum(axis=1) / len(df.columns), # start
-                         100 * (df == -2).sum(axis=1) / len(df.columns), # middle
-                         100 * (df == -3).sum(axis=1) / len(df.columns), # end
-                         100 * (df == -4).sum(axis=1) / len(df.columns), # stock missing
-                         100 * (df == -5).sum(axis=1) / len(df.columns), # totally_missing missing
+            missing_percs = [100 * ((df == -1) * weights).sum(axis=1) / weights.sum(), # start
+                         100 * ((df == -2) * weights).sum(axis=1) / weights.sum(), # middle
+                         100 * ((df == -3) * weights).sum(axis=1) / weights.sum(), # end
+                         100 * ((df == -4) * weights).sum(axis=1) / weights.sum(), # stock missing
+                         100 * ((df == -5) * weights).sum(axis=1) / weights.sum(), # totally_missing missing
                         ]
             missing_percs = pd.concat(missing_percs, axis=1)
             missing_percs.columns = ['Start', 'Middle', 'End', 'Stock Miss.', 'Complete']
             return missing_percs
+
+        
         
         flag_panel = get_flags(regular_chars, return_panel)
         
         flags = get_data_dataframe(flag_panel, return_panel, chars, dates, permnos, monthly_updates, None)
+        std_data = get_data_dataframe(regular_chars, return_panel, chars, dates, permnos, monthly_updates, None)
         
         flags.date = pd.to_datetime(flags.date.astype(int).astype(str))
+        std_data.date = pd.to_datetime(std_data.date.astype(int).astype(str))
 
         flags = flags.set_index(['permno', 'date'])[chars]
+        std_data = std_data.set_index(['permno', 'date'])[chars]
+        if value_weight:
+            assert not first_mean_permno
+            self.name += '_value_weight'
+            flags['weights'] = std_data['ME'].fillna(0)
+            flags['weights'] = flags['weights'].fillna(0)
+        else:
+            flags['weights'] = 1
+            
+        value_weights = regular_chars[:,:,np.argwhere(chars == 'ME')[0][0]]
+
 
         if first_mean_permno:
             missing_percs = flags.groupby(level=0).apply(get_missing_percs).groupby(level=1).mean()
@@ -437,6 +461,39 @@ class AutocorrOfChars(SectionTwoPlotBase):
 
         autocorr(percentile_rank_chars, char_groupings)
 
+
+
+class StdOfChars(SectionTwoPlotBase):
+    name = 'StdOfChars'
+    description = ''
+
+    def setup(self, percentile_rank_chars, regular_chars, return_panel, dates, permnos, chars, char_groupings, monthly_updates):
+        def std(char_panel, char_groupings):
+            fig = plt.figure(figsize=(15,10))
+            ordering = None
+        
+            T, N, C = char_panel.shape
+            stds = []
+            for c in tqdm(range(C)):
+                auto_corrs = []
+                for n in range(N):
+                    if np.sum(~np.isnan(char_panel[:,n,c])) >= 60:
+                        s = pd.Series(data = char_panel[:,n,c], index=dates)
+                        first_idx = s.first_valid_index()
+                        last_idx = s.last_valid_index()
+                        s = s.loc[first_idx:last_idx]
+                        auto_corrs.append(s.std())
+                stds.append(np.nanmean(auto_corrs, axis=0))
+            
+            if ordering is None:
+                ordering = np.argsort(np.array(stds))[::-1]
+            
+            plt.plot(np.arange(45), np.array(stds)[ordering], label=f'Std')
+            
+            plt.legend()
+            plt.xticks(np.arange(45), chars[ordering], rotation=90, fontsize=15)
+
+        std(percentile_rank_chars, char_groupings)
 
 class HeatmatOfCorr(SectionTwoPlotBase):
     name = 'HeatmatOfCorr'
