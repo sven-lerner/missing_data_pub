@@ -18,11 +18,11 @@ Note, there are two differences between the data-set we have provided and the da
 
 2. create the necessary directions `$ ./setup_directories.sh`
 
-3. generate the masked data `$ cd src & python generate_masked_data.py`
+3. generate the masked data `$ cd src && python generate_masked_data.py`
 
-4. run the imputations `$ cd src & python run_data_imputations.py`
+4. run the imputations `$ cd src && python run_data_imputations.py`
 
-5. run the desired notebook for the particular results in question, ensure to run the first cell of the notebook to import the required modules and load the required data. to start the notebook server run `$ cd src & jupyter notebook`
+5. run the desired notebook for the particular results in question, ensure to run the first cell of the notebook to import the required modules and load the required data. to start the notebook server run `$ cd src && jupyter notebook`
 - We have indicated in each result in the notebook how long it took us to run on a Macbook Pro with 2.8 GHz Quad-Core Intel Core i7 processor and 16 GB 2133 MHz LPDDR3 for memory.
 - Some of the results take quite some time to run (for example the simulations).
 - Generating the data and running the imputations should take on the order of an hour or two
