@@ -7,8 +7,8 @@ The data file we have provided `raw_rank_trunk_chars.npz` should be placed in th
 ### Notes about Data
 
 Note, there are two differences between the data-set we have provided and the data-set used in the paper
-1. The data-set we have provided is a truncated version of the data-set in the paper. This is because the full data-set is around 20 GB, and running all the results requires making multiple copies of the data-set, which is very time and space consuming
-2. The returns in the data-set we have provided have been altered such as not to violate the terms of service from their source, we have done this by adding noise to them. Therefore, one should not expect this data to replicate any of the paper results concerning returns, nor should it replicate standard results.
+1. The data-set we have provided is a truncated version of the data-set in the paper. This is because the full data-set is around 20 GB, and running all the results requires making multiple copies of the data-set, which is very time and space consuming. To subset the data, we have simply taken the last 5 years of the data.
+2. The returns in the data-set we have provided have been altered such as not to violate the terms of service from their source, we have done this by adding noise to them; specifically we have added a sample of a Normal(0, 0.1) variable to each return. Therefore, one should not expect this data to replicate any of the paper results concerning returns, nor should it replicate standard results. The permos corresponding to returns have not been modified in any way, and therefore users with WRDS access can easily replace the contaminated returns with the correct returns. 
 
 ## Running the Code
 
