@@ -1,4 +1,3 @@
-mkdir data
 mkdir data/imputation_cache
 mkdir images-pdfs
 mkdir images-pdfs/appendix
