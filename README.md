@@ -2,7 +2,8 @@
 
 ## Data
 
-The data file we have provided `raw_rank_trunk_chars.npz` should be placed in the `data/` directory in the project if it is not already there.
+The data file we have provided `raw_rank_trunk_chars.npz` should be placed in the `data/` directory in the project if it is not already there. This file can be found under this link: 
+https://www.dropbox.com/scl/fi/424yiolvlkowhd41v4c7h/raw_rank_trunk_chars.npz?rlkey=43eyoozyei16qs2huyuf46aq7&dl=0
 
 ### Notes about Data
 
