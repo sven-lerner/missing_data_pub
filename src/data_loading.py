@@ -28,7 +28,7 @@ def percentile_rank_panel(char_panel):
     for t in range(char_panel.shape[0]):
         for i in range(char_panel.shape[2]):
             ret_panel[t, :, i] = percentile_rank(char_panel[t, :, i])
-        assert np.sum(np.isnan(ret_panel[t])) > 0, 'something fucky'
+        assert np.sum(np.isnan(ret_panel[t])) > 0, 'something wrong with missing data'
     return ret_panel
 
 def get_data_dataframe(data_panel, return_panel, char_names, dates, permnos, monthly_updates, mask):
